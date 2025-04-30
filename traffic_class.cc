@@ -33,7 +33,8 @@ class TrafficClass : public DiffServ{
     private:
         uint32_t packets;
         uint32_t maxPackets;
-        double_t priority_level;
+        double_t weight;
+        uint32_t priority_level;
         bool isDefault;
         queue<Ptr<Packet>> m_queue;
 };

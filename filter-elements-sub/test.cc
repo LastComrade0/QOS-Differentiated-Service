@@ -11,6 +11,7 @@
 #include <memory>
 #include <vector>
 
+/*
 #include "filter_element.h"
 #include "filter-elements-sub/src_ip.cc"
 #include "filter-elements-sub/src_mask.cc"
@@ -18,7 +19,7 @@
 #include "filter-elements-sub/dest_ip.cc"
 #include "filter-elements-sub/dest_mask.cc"
 #include "filter-elements-sub/dest_port_number.cc"
-#include "filter-elements-sub/protocol_number.cc"
+#include "filter-elements-sub/protocol_number.cc"*/
 
 //#include "filter.cc"
 //#include "traffic_class.cc"
@@ -28,6 +29,7 @@
 // Default Network Topology
 //
 //       10.1.1.0
+
 // n0 -------------- n1
 //    point-to-point
 //
@@ -106,30 +108,6 @@ main (int argc, char *argv[])
   //Enable generating the pcap files.
   pointToPoint.EnablePcapAll("simple-udp-echo");
 
-  //Test
-
-  Ptr<Packet> p = Create<Packet>(100); // 100 bytes payload
-
-  // Step 2: Create and add IPv4 Header
-  Ipv4Header ipv4Header;
-  ipv4Header.SetSource(Ipv4Address("10.1.1.1"));
-  ipv4Header.SetDestination(Ipv4Address("10.1.1.2"));
-  ipv4Header.SetProtocol(6); // TCP
-  ipv4Header.SetPayloadSize(100);
-
-  p->AddHeader(ipv4Header);
-
-  // Step 3: Create your SrcIPAddress filter
-  SrcIPAddress filter(Ipv4Address("10.1.1.1"));
-
-  // Step 4: Call match and check
-  bool result = filter.match(p);
-
-  if (result) {
-      std::cout << "Test PASSED: Packet matches SrcIPAddress filter." << std::endl;
-  } else {
-      std::cout << "Test FAILED: Packet does NOT match SrcIPAddress filter." << std::endl;
-  }
 
   Simulator::Run ();
   Simulator::Destroy ();
