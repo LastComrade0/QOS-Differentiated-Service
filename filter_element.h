@@ -9,7 +9,7 @@
 
 using namespace ns3;
 
-class FilterElement : public ns3::Object{
+class FilterElement : public ns3::Object{ //Inherits object since sub classes sets this as parent
     public:
         
         FilterElement() {};
