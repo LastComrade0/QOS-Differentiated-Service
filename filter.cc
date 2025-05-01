@@ -36,7 +36,15 @@ Filter::Filter(SrcIPAddress* src_ip, SrcMask* src_mask, SrcPortNumber* src_port,
 }
 
 bool Filter::match(Ptr<Packet> packet) const {
+    //int i = 0;
     for (const FilterElement* f : filter_elements) {
+
+        // std::cout << "FilterElement " << i << " type: " << typeid(*f).name() << std::endl;
+        // std::cout << endl;
+        // bool result = f->match(packet);
+        // std::cout << "FilterElement " << i++ << " match result: " << result << std::endl;
+        std::cout << "----------------------------" << endl;
+
         if (!f->match(packet)) {
             return false;
         }

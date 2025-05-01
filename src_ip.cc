@@ -5,6 +5,7 @@
 #include "src_ip.h"
 
 using namespace ns3;
+using namespace std;
 
 NS_LOG_COMPONENT_DEFINE ("SrcIPAddress");
 
@@ -22,6 +23,9 @@ bool SrcIPAddress::match(Ptr<Packet> packet) const {
     Ipv4Header ipv4Header;
     
     packet->PeekHeader(ipv4Header);
+
+    cout << "Packet src ip: " << ipv4Header.GetSource() << endl;
+    cout << "Criteria src ip: " << src_address << endl;
 
     return ipv4Header.GetSource() == src_address;
 }

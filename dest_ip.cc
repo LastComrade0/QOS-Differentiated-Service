@@ -5,6 +5,7 @@
 #include "dest_ip.h"
 
 using namespace ns3;
+using namespace std;
 
 NS_LOG_COMPONENT_DEFINE ("DestIPAddress");
 
@@ -23,6 +24,9 @@ bool DestIPAddress::match(Ptr<Packet> packet) const{
     Ipv4Header ipv4Header;
             
     packet->PeekHeader(ipv4Header);
+
+    cout << "Packet destination address: " << ipv4Header.GetDestination() << endl;
+    cout << "Criteria destination address: " << dest_address << endl;
     
     return ipv4Header.GetDestination() == dest_address;
 }

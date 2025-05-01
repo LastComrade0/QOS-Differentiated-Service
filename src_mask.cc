@@ -5,6 +5,7 @@
 #include "src_mask.h"
 
 using namespace ns3;
+using namespace std;
 
 NS_LOG_COMPONENT_DEFINE ("SrcMask");
 
@@ -25,6 +26,9 @@ bool SrcMask::match(Ptr<Packet> packet) const{
     packet->PeekHeader(ipv4Header);
 
     Ipv4Address extracted_src = ipv4Header.GetSource();
+
+    cout << "Packet src combined mask: " << extracted_src.CombineMask(src_mask) << endl;
+    cout << "Criteria src combined mask: " << src_address.CombineMask(src_mask) << endl;
             
     return extracted_src.CombineMask(src_mask) == src_address.CombineMask(src_mask);
 }

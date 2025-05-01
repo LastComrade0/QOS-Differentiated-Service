@@ -5,6 +5,7 @@
 #include "dest_mask.h"
 
 using namespace ns3;
+using namespace std;
 
 NS_LOG_COMPONENT_DEFINE ("DestMask");
 
@@ -25,6 +26,9 @@ bool DestMask::match(Ptr<Packet> packet) const{
     packet->PeekHeader(ipv4Header);
 
     Ipv4Address extracted_dest = ipv4Header.GetDestination();
+
+    cout << "Packet combine mask: " << extracted_dest.CombineMask(dest_mask) << endl;
+    cout << "Criteria combine mask: " << dest_address.CombineMask(dest_mask) << endl;
 
     return extracted_dest.CombineMask(dest_mask) == dest_address.CombineMask(dest_mask);
 
