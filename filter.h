@@ -32,6 +32,8 @@ class Filter: public Object{//Inherits object as NS_OBJECT_ENSURE_REGISTERED(Fil
 
         bool match(Ptr<Packet> packet) const;
 
+        void addElement(FilterElement *element);
+
 };
 
 #endif

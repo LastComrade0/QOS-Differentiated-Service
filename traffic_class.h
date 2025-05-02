@@ -35,6 +35,7 @@ class TrafficClass{
 
         bool match(Ptr<Packet> packet);
 
+        int getQueueSize();
 
     private:
         uint32_t packets;

@@ -70,6 +70,7 @@ TrafficClass::~TrafficClass(){}
 bool TrafficClass::Enqueue(Ptr<Packet> packet){
     if (match(packet) && m_queue.size() < maxPackets){
         m_queue.push(packet);
+
         return true;
     }
 
@@ -95,4 +96,8 @@ bool TrafficClass::match(Ptr<Packet> packet){
     }
 
     return false;
+}
+
+int TrafficClass::getQueueSize(){
+    return m_queue.size();
 }
