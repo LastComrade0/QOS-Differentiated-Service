@@ -8,9 +8,13 @@
 #include <iostream>
 #include <vector>
 #include <memory>
+#include <math.h>
 
 using namespace std;
 using namespace ns3;
+
+//General
+TrafficClass::TrafficClass(){}
 
 //DRR
 TrafficClass::TrafficClass(uint32_t max_packets, uint32_t quantum_size, uint32_t *deficit_counter, bool isDefault,
@@ -100,4 +104,49 @@ bool TrafficClass::match(Ptr<Packet> packet){
 
 int TrafficClass::getQueueSize(){
     return m_queue.size();
+}
+
+Ptr<Packet> TrafficClass::peek() const{
+    if(!m_queue.empty()){
+        return m_queue.front();
+    }
+
+    cout << "Unable to peek: m_queue empty" << endl;
+    return nullptr;
+}
+
+bool TrafficClass::isEmpty(){
+    return m_queue.empty();
+}
+
+void TrafficClass::addFilter(Filter* set_filter){
+    filter_vector.push_back(set_filter);
+}
+
+void TrafficClass::setPackets(uint32_t set_packets){
+    packets = set_packets;
+}
+
+void TrafficClass::setMaxPackets(uint32_t max_packets){
+    maxPackets = max_packets;
+}
+
+void TrafficClass::setWeight(double_t set_weight){
+    weight = set_weight;
+}
+
+void TrafficClass::setPriorityLvl(uint32_t set_priority_level){
+    priority_level = set_priority_level;
+}
+
+void TrafficClass::setDefault(bool is_default){
+    isDefault = is_default;
+}
+
+void TrafficClass::setQuantumSize(uint32_t set_quantum_size){
+    quantum_size = set_quantum_size;
+}
+
+void TrafficClass::setDeficitCounter(uint32_t set_deficit_counter){
+    *deficit_counter = set_deficit_counter;
 }

@@ -21,6 +21,7 @@ class DiffServ : public Queue<Packet> {
 
         ~DiffServ();
 
+        void AddTrafficClass(TrafficClass* tc);
 
         bool Enqueue(Ptr<Packet> packet);
 

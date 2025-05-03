@@ -6,6 +6,7 @@
 
 #include <queue>
 #include <vector>
+#include <math.h>
 
 using namespace ns3;
 using namespace std;
@@ -36,6 +37,30 @@ class TrafficClass{
         bool match(Ptr<Packet> packet);
 
         int getQueueSize();
+
+        Ptr<Packet> peek() const;
+
+        bool isEmpty();
+
+
+        //Setters
+
+        void addFilter(Filter* set_filter);
+
+        void setPackets(uint32_t set_packets);
+
+        void setMaxPackets(uint32_t max_packets);
+
+        void setWeight(double_t set_weight);
+
+        void setPriorityLvl(uint32_t set_priority_level);
+
+        void setDefault(bool is_default);
+
+        void setQuantumSize(uint32_t set_quantum_size);
+        
+        void setDeficitCounter(uint32_t set_deficit_counter);
+        
 
     private:
         uint32_t packets;

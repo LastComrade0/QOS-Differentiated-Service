@@ -20,6 +20,10 @@ DiffServ::DiffServ() {
 
 DiffServ::~DiffServ(){}
 
+void DiffServ::AddTrafficClass(TrafficClass* tc) {
+    q_class.push_back(tc);
+}
+
 bool DiffServ::Enqueue(Ptr<Packet> packet) {
     for(TrafficClass *tc : q_class){
         if(tc->match(packet)){
@@ -32,13 +36,26 @@ bool DiffServ::Enqueue(Ptr<Packet> packet) {
 }
 
 Ptr<Packet> DiffServ::Dequeue() {
-    return nullptr;
+
+    return Schedule();
 }
 
 Ptr<const Packet> DiffServ::Peek() const {
+    for(TrafficClass *tc: q_class){
+        if(!tc->isEmpty()){
+            return tc->peek();
+        }
+    }
+
+    cout << "Unable to peek: q_class empty" << endl;
     return nullptr;
 }
 
 Ptr<Packet> DiffServ::Remove() {
+    for(TrafficClass *tc: q_class){
+        if(!tc->isEmpty()){
+            return tc->Dequeue();
+        }
+    }
     return nullptr;
 }
