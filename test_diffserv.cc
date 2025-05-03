@@ -55,6 +55,25 @@ TrafficClass* MakeClass(Ipv4Address destIp, uint16_t port, uint8_t proto, uint32
     return tc;
 }
 
+TrafficClass* MakeClass2(Ipv4Address destIp, uint16_t port, uint8_t proto, uint32_t priority, bool isDefault = false) {
+    auto* tc2 = new TrafficClass(); //10, priority, isDefault
+    tc2->setMaxPackets(10);
+    tc2->setPriorityLvl(priority);
+    tc2->setDefault(isDefault);
+
+
+    Filter* f = new Filter();
+    f->addElement(new DestPortNumber(port));
+    f->addElement(new DestIPAddress(destIp));
+    tc2->addFilter(f);
+
+    Filter* f2 = new Filter();
+    f2->addElement(new ProtocolNumber(proto));
+    tc2->addFilter(f2);
+
+    return tc2;
+}
+
 int main() {
     TestDiffServ ds;
 
@@ -62,17 +81,32 @@ int main() {
     ds.AddTrafficClass(MakeClass("8.8.8.8", 80, 6, 0));
     ds.AddTrafficClass(MakeClass("0.0.0.0", 0, 6, 1, true)); // default
 
+    ds.AddTrafficClass(MakeClass2("10.0.0.1", 70, 1, 2));
+
     // Create matching packet for 8.8.8.8:80
+    //Packet 1
     Ptr<Packet> pkt1 = Create<Packet>(100);
     Ipv4Header ip;
     ip.SetDestination("8.8.8.8");
     ip.SetProtocol(6); // TCP
 
     TcpHeader tcp;
-    tcp.SetDestinationPort(80);
+    tcp.SetDestinationPort(70);
 
     pkt1->AddHeader(tcp);
     pkt1->AddHeader(ip);
+
+    //Packet 2
+    Ptr<Packet> pkt2 = Create<Packet>(100);
+    Ipv4Header ip2;
+    ip2.SetDestination("0.0.0.1");
+    ip2.SetProtocol(6); // TCP
+
+    TcpHeader tcp2;
+    tcp2.SetDestinationPort(70);
+
+    pkt2->AddHeader(tcp2);
+    pkt2->AddHeader(ip2);
 
     // Enqueue
     bool enq = ds.Enqueue(pkt1);
@@ -85,6 +119,21 @@ int main() {
     // Dequeue
     Ptr<Packet> dq = ds.Dequeue();
     std::cout << "Dequeue: " << (dq ? "Success" : "Fail") << std::endl;
+
+    cout << "ooooooooooooooooooooooooooooooo" << endl;
+    
+    /*Packet 2 Enqueue */
+    // Enqueue
+    bool enq2 = ds.Enqueue(pkt2);
+    std::cout << "Enqueue: " << (enq2 ? "Success" : "Fail") << std::endl;
+
+    // Peek
+    Ptr<const Packet> peek2 = ds.Peek();
+    std::cout << "Peek: " << (peek2 ? "Present" : "None") << std::endl;
+
+    // Dequeue
+    Ptr<Packet> dq2 = ds.Dequeue();
+    std::cout << "Dequeue: " << (dq2 ? "Success" : "Fail") << std::endl;
 
     return 0;
 }

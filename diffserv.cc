@@ -25,11 +25,15 @@ void DiffServ::AddTrafficClass(TrafficClass* tc) {
 }
 
 bool DiffServ::Enqueue(Ptr<Packet> packet) {
+    int class_count = 1;
+    
     for(TrafficClass *tc : q_class){
+        cout << "Iterating enqueue class " << class_count << endl;
         if(tc->match(packet)){
             tc->Enqueue(packet);
             return true;
         }
+        class_count += 1;
     }
 
     return false;
