@@ -14,17 +14,21 @@
 using namespace ns3;
 using namespace std;
 
-DiffServ::DiffServ() {
+template <typename Packet>
+DiffServ<Packet>::DiffServ() {
     // Default init; leave empty if needed
 }
 
-DiffServ::~DiffServ(){}
+template <typename Packet>
+DiffServ<Packet>::~DiffServ(){}
 
-void DiffServ::AddTrafficClass(TrafficClass* tc) {
+template <typename Packet>
+void DiffServ<Packet>::AddTrafficClass(TrafficClass* tc) {
     q_class.push_back(tc);
 }
 
-bool DiffServ::Enqueue(Ptr<Packet> packet) {
+template <typename Packet>
+bool DiffServ<Packet>::Enqueue(Ptr<Packet> packet) {
     int class_count = 1;
     
     for(TrafficClass *tc : q_class){
@@ -39,12 +43,14 @@ bool DiffServ::Enqueue(Ptr<Packet> packet) {
     return false;
 }
 
-Ptr<Packet> DiffServ::Dequeue() {
+template <typename Packet>
+Ptr<Packet> DiffServ<Packet>::Dequeue() {
 
-    return Schedule();
+    return this->Schedule();
 }
 
-Ptr<const Packet> DiffServ::Peek() const {
+template <typename Packet>
+Ptr<const Packet> DiffServ<Packet>::Peek() const {
     for(TrafficClass *tc: q_class){
         if(!tc->isEmpty()){
             return tc->peek();
@@ -55,7 +61,8 @@ Ptr<const Packet> DiffServ::Peek() const {
     return nullptr;
 }
 
-Ptr<Packet> DiffServ::Remove() {
+template <typename Packet>
+Ptr<Packet> DiffServ<Packet>::Remove() {
     for(TrafficClass *tc: q_class){
         if(!tc->isEmpty()){
             return tc->Dequeue();
@@ -63,3 +70,25 @@ Ptr<Packet> DiffServ::Remove() {
     }
     return nullptr;
 }
+
+template <typename Packet>
+bool DiffServ<Packet>::DoEnqueue(Ptr<Packet> packet){
+    return Enqueue(packet);
+}
+
+template <typename Packet>
+Ptr<Packet> DiffServ<Packet>::DoDequeue(){
+    return Dequeue();
+}
+
+template <typename Packet>
+Ptr<Packet> DiffServ<Packet>::DoRemove(){
+    return Remove();
+}
+
+template <typename Packet>
+Ptr<const Packet> DiffServ<Packet>::DoPeek() const{
+    return Peek();
+}
+
+template class DiffServ<Packet>;

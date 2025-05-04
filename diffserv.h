@@ -9,7 +9,8 @@
 
 using namespace ns3;
 
-class DiffServ : public Queue<Packet> {
+template <typename Packet>
+class DiffServ : public Queue<Packet>{
 
     public:
 
@@ -37,8 +38,16 @@ class DiffServ : public Queue<Packet> {
 
 
     protected:
-        
+
         vector<TrafficClass*> q_class;
+
+        bool DoEnqueue(Ptr<Packet> p);
+    
+        Ptr<Packet> DoDequeue();
+    
+        Ptr<Packet> DoRemove();
+    
+        Ptr<const Packet> DoPeek() const;
 
 };
 

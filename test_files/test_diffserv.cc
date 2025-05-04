@@ -19,10 +19,11 @@ using namespace std;
 NS_LOG_COMPONENT_DEFINE("DiffServTest");
 
 // Dummy scheduler: return first non-empty class
-class TestDiffServ : public DiffServ {
+template <typename Packet>
+class TestDiffServ : public DiffServ<Packet> {
 public:
     Ptr<Packet> Schedule() override {
-        for (TrafficClass* tc : q_class) {
+        for (TrafficClass* tc : this->q_class) {
             if (!tc->isEmpty()) {
                 return tc->Dequeue();
             }
@@ -75,7 +76,7 @@ TrafficClass* MakeClass2(Ipv4Address destIp, uint16_t port, uint8_t proto, uint3
 }
 
 int main() {
-    TestDiffServ ds;
+    TestDiffServ<Packet> ds;
 
     // Add 2 classes: one for 8.8.8.8:80 and one fallback
     ds.AddTrafficClass(MakeClass("8.8.8.8", 80, 6, 0));
