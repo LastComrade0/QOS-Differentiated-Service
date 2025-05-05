@@ -88,12 +88,20 @@ Ptr<Packet> DiffServ<Packet>::Remove() {
 
 template <typename Packet>
 bool DiffServ<Packet>::DoEnqueue(Ptr<Packet> packet){
-    return Enqueue(packet);
+    cout << "[Diffserv] DoEnqueue() called" << endl;
+    uint32_t classId = this->Classify(packet);
+    if (classId < q_class.size()) {
+        return Enqueue(packet);
+    } else {
+        std::cerr << "Classification failed — no valid traffic class. Packet dropped." << std::endl;
+        return false;
+    }
 }
 
 template <typename Packet>
 Ptr<Packet> DiffServ<Packet>::DoDequeue(){
-    return Dequeue();
+    cout << "[Diffserv] DoDequeue() called" << endl;
+    return this->Schedule();
 }
 
 template <typename Packet>

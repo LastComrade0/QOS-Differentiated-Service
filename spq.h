@@ -34,6 +34,10 @@ class SPQ : public DiffServ<Packet>{
         void CheckQueue();
 
         vector<TrafficClass*> getTrafficVector();
+
+        bool testEnqueue(Ptr<Packet> packet);
+
+        Ptr<Packet> testDequeue();
     
 };
 

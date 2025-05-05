@@ -86,6 +86,15 @@ vector<TrafficClass*> SPQ<Packet>::getTrafficVector(){
     return this->q_class;
 }
 
+template<typename Packet>
+bool SPQ<Packet>::testEnqueue(Ptr<Packet> packet){
+    return this->DoEnqueue(packet);
+}
+
+template<typename Packet>
+Ptr<Packet> SPQ<Packet>::testDequeue(){
+    return this->DoDequeue();
+}
 
 
 int main(){
@@ -201,7 +210,7 @@ int main(){
     cout << " - * - * - * - * - * - * - * - * - * - * - * - * - * - *" << endl;
 
     // --- Enqueue packet 1 into correct class ---
-    bool success = spq->Enqueue(pkt);
+    bool success = spq->testEnqueue(pkt);
     cout << "Enqueue success: " << (success ? "true" : "false") << endl;
 
     cout << "Current size for class " << classId << ": " << spq->getTrafficVector()[classId]->getQueueSize() << endl;
@@ -216,7 +225,7 @@ int main(){
     }
 
     // --- Enqueue packet 2 into correct class ---
-    bool success2 = spq->Enqueue(pkt2); //Enqueue direct call or under Classify()?
+    bool success2 = spq->testEnqueue(pkt2); //Enqueue direct call or under Classify()?
     cout << "Enqueue success: " << (success2 ? "true" : "false") << endl;
 
     cout << "Current size for class " << classId2 << ": " << spq->getTrafficVector()[classId2]->getQueueSize() << endl;
