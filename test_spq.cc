@@ -231,7 +231,7 @@ int main(){
     cout << "Current size for class " << classId2 << ": " << spq->getTrafficVector()[classId2]->getQueueSize() << endl;
 
     //Test Schedule
-    Ptr<Packet> scheduledPkt = spq->Schedule();
+    Ptr<Packet> scheduledPkt = spq->testDequeue();
 
     Ipv4Header ipHeaderExtract;
     TcpHeader tcpHeaderExtract;
