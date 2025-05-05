@@ -32,6 +32,8 @@ class TrafficClass{
 
         bool Enqueue(Ptr<Packet> packet);
 
+        bool EnqueueDefault(Ptr<Packet> packet);
+
         Ptr<Packet> Dequeue();
 
         bool match(Ptr<Packet> packet);
@@ -60,6 +62,21 @@ class TrafficClass{
         void setQuantumSize(uint32_t set_quantum_size);
         
         void setDeficitCounter(uint32_t set_deficit_counter);
+        
+        //Getters
+        uint32_t getPrioirtyLvl();
+
+        bool isDefaultCheck();
+
+        uint32_t getPackets();
+
+        uint32_t getMaxPackets();
+
+        uint32_t getWeight();
+
+        uint32_t getQuantumSize();
+
+        uint32_t getDeficitCounter();
         
 
     private:

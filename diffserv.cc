@@ -33,13 +33,28 @@ bool DiffServ<Packet>::Enqueue(Ptr<Packet> packet) {
     
     for(TrafficClass *tc : q_class){
         cout << "Iterating enqueue class " << class_count << endl;
+
         if(tc->match(packet)){
+            cout << "***Successfully enqueued, priority level: " << tc->getPrioirtyLvl() << endl;
             tc->Enqueue(packet);
             return true;
         }
         class_count += 1;
     }
 
+    cout << "Packet does not match any filter, triggering default..." << endl;
+    class_count = 0;
+    for(TrafficClass *tc2 : q_class){
+        cout << "Iterating enqueue class for default: " << class_count << endl;
+        if(tc2->isDefaultCheck()){
+            cout << "***Successfully enqueued default, priority level: " << tc2->getPrioirtyLvl() << endl;
+            tc2->EnqueueDefault(packet);
+            return true;
+        }
+        class_count += 1;
+    }
+
+    cout << "Failed enqueueing, should be defaulted" << endl;
     return false;
 }
 

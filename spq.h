@@ -30,6 +30,8 @@ class SPQ : public DiffServ<Packet>{
         uint32_t Classify(Ptr<Packet> p) override;
 
         void CreateTrafficClassesVector(vector<TrafficClass*> set_traffic_vector);
+
+        void CheckQueue();
     
 };
 

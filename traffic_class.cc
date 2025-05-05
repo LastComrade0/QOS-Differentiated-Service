@@ -74,11 +74,19 @@ TrafficClass::~TrafficClass(){}
 bool TrafficClass::Enqueue(Ptr<Packet> packet){
     if (match(packet) && m_queue.size() < maxPackets){
         m_queue.push(packet);
-
+        packets += 1;
         return true;
     }
 
     return false;
+}
+
+/*Warning: Only call this from DiffServ class when you are sure the packet does not satisfy any traffic class classification*/
+bool TrafficClass::EnqueueDefault(Ptr<Packet> packet){
+    cout << "Enqueued to default priority: " << this->getPrioirtyLvl() << endl;
+    m_queue.push(packet);
+    packets += 1;
+    return true;
 }
 
 Ptr<Packet> TrafficClass::Dequeue(){
@@ -88,6 +96,7 @@ Ptr<Packet> TrafficClass::Dequeue(){
     else{
         Ptr<Packet> res = m_queue.front();
         m_queue.pop();
+        packets -= 1;
         return res;
     }
 }
@@ -150,3 +159,35 @@ void TrafficClass::setQuantumSize(uint32_t set_quantum_size){
 void TrafficClass::setDeficitCounter(uint32_t set_deficit_counter){
     *deficit_counter = set_deficit_counter;
 }
+
+/*Getters*/
+uint32_t TrafficClass::getPrioirtyLvl(){
+    return priority_level;
+}
+
+bool TrafficClass::isDefaultCheck(){
+    return isDefault;
+}
+
+uint32_t TrafficClass::getPackets(){
+    return packets;
+}
+
+uint32_t TrafficClass::getMaxPackets(){
+    return maxPackets;
+}
+
+uint32_t TrafficClass::getWeight(){
+    return weight;
+}
+
+uint32_t TrafficClass::getQuantumSize(){
+    return quantum_size;
+}
+
+uint32_t TrafficClass::getDeficitCounter(){
+    return *deficit_counter;
+}
+
+
+

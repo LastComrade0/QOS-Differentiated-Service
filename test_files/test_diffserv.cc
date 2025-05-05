@@ -80,9 +80,15 @@ int main() {
 
     // Add 2 classes: one for 8.8.8.8:80 and one fallback
     ds.AddTrafficClass(MakeClass("8.8.8.8", 80, 6, 0));
-    ds.AddTrafficClass(MakeClass("0.0.0.0", 0, 6, 1, true)); // default
+    ds.AddTrafficClass(MakeClass("0.0.0.0", 0, 6, 2)); // default
 
-    ds.AddTrafficClass(MakeClass2("10.0.0.1", 70, 1, 2));
+    ds.AddTrafficClass(MakeClass2("10.0.0.1", 70, 1, 1));
+
+    TrafficClass* defaultTrafficClass = new TrafficClass();
+    defaultTrafficClass->setDefault(true);
+    defaultTrafficClass->setPriorityLvl(3);
+
+    ds.AddTrafficClass(defaultTrafficClass);
 
     // Create matching packet for 8.8.8.8:80
     //Packet 1

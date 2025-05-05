@@ -53,9 +53,29 @@ void insertFilter(TrafficClass* tc, Filter *filter){
 
 }
 
+void insertTrafficClass(vector<TrafficClass*>& traffic_class_vector_local, TrafficClass* tc){
+    auto it = traffic_class_vector_local.begin();
+    cout << "Priority to insert: " << tc->getPrioirtyLvl() << endl;
+    while (it != traffic_class_vector_local.end() && (*it)->getPrioirtyLvl() > tc->getPrioirtyLvl()) {
+        size_t index = std::distance(traffic_class_vector_local.begin(), it);
+        cout << "To insert index: " << index << endl;
+        ++it;
+    }
+    traffic_class_vector_local.insert(it, tc);
+}
+
+template<typename Packet>
+void SPQ<Packet>::CheckQueue(){
+    for(TrafficClass* it_traffic: this->q_class){
+        cout << "Iterate priority: " << it_traffic->getPrioirtyLvl() << endl;
+    }
+}
+
 
 
 int main(){
+    cout << "Running SPQ..." << endl;
+
     Ptr<SPQ<Packet>> spq = CreateObject<SPQ<Packet>>();
     vector<TrafficClass*> traffic_vectors;
 
@@ -75,14 +95,14 @@ int main(){
     f0_1->addElement(new DestIPAddress("127.0.0.1"));
     insertFilter(tc0, f0_1);
 
-    traffic_vectors.push_back(tc0);
+    insertTrafficClass(traffic_vectors, tc0);
 
     //Create Traffic Class 1
     TrafficClass *tc1 = new TrafficClass();
 
     tc1->setDefault(false);
     tc1->setMaxPackets(30);
-    tc1->setPriorityLvl(1);
+    tc1->setPriorityLvl(3);
 
     Filter *f1_0 = new Filter();
     f1_0->addElement(new DestPortNumber(80));
@@ -99,7 +119,24 @@ int main(){
     f1_2->addElement(new DestIPAddress("10.0.0.1"));
     insertFilter(tc1, f1_2);
 
-    traffic_vectors.push_back(tc1);
+    insertTrafficClass(traffic_vectors, tc1);
+
+    /*Testing correctness of inserting traffic class based on priority */
+    /*
+    TrafficClass *tc2 = new TrafficClass();
+
+    tc2->setPriorityLvl(2);
+
+    insertTrafficClass(traffic_vectors, tc2);
+
+    TrafficClass *tc3 = new TrafficClass();
+
+    tc3->setPriorityLvl(1);
+
+    insertTrafficClass(traffic_vectors, tc3);
+    */
 
     spq->CreateTrafficClassesVector(traffic_vectors);
+
+    spq->CheckQueue();
 }
