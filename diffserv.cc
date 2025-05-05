@@ -35,7 +35,7 @@ bool DiffServ<Packet>::Enqueue(Ptr<Packet> packet) {
         cout << "Iterating enqueue class " << class_count << endl;
 
         if(tc->match(packet)){
-            cout << "***Successfully enqueued, priority level: " << tc->getPrioirtyLvl() << endl;
+            cout << "***Successfully enqueued, priority level: " << tc->getPriorityLvl() << endl;
             tc->Enqueue(packet);
             return true;
         }
@@ -47,7 +47,7 @@ bool DiffServ<Packet>::Enqueue(Ptr<Packet> packet) {
     for(TrafficClass *tc2 : q_class){
         cout << "Iterating enqueue class for default: " << class_count << endl;
         if(tc2->isDefaultCheck()){
-            cout << "***Successfully enqueued default, priority level: " << tc2->getPrioirtyLvl() << endl;
+            cout << "***Successfully enqueued default, priority level: " << tc2->getPriorityLvl() << endl;
             tc2->EnqueueDefault(packet);
             return true;
         }

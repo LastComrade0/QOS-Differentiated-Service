@@ -64,7 +64,7 @@ class TrafficClass{
         void setDeficitCounter(uint32_t set_deficit_counter);
         
         //Getters
-        uint32_t getPrioirtyLvl();
+        uint32_t getPriorityLvl();
 
         bool isDefaultCheck();
 

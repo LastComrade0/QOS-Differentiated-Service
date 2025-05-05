@@ -55,8 +55,8 @@ void insertFilter(TrafficClass* tc, Filter *filter){
 
 void insertTrafficClass(vector<TrafficClass*>& traffic_class_vector_local, TrafficClass* tc){
     auto it = traffic_class_vector_local.begin();
-    cout << "Priority to insert: " << tc->getPrioirtyLvl() << endl;
-    while (it != traffic_class_vector_local.end() && (*it)->getPrioirtyLvl() > tc->getPrioirtyLvl()) {
+    cout << "Priority to insert: " << tc->getPriorityLvl() << endl;
+    while (it != traffic_class_vector_local.end() && (*it)->getPriorityLvl() > tc->getPriorityLvl()) {
         size_t index = std::distance(traffic_class_vector_local.begin(), it);
         cout << "To insert index: " << index << endl;
         ++it;
@@ -67,7 +67,7 @@ void insertTrafficClass(vector<TrafficClass*>& traffic_class_vector_local, Traff
 template<typename Packet>
 void SPQ<Packet>::CheckQueue(){
     for(TrafficClass* it_traffic: this->q_class){
-        cout << "Iterate priority: " << it_traffic->getPrioirtyLvl() << endl;
+        cout << "Iterate priority: " << it_traffic->getPriorityLvl() << endl;
     }
 }
 

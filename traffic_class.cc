@@ -83,7 +83,7 @@ bool TrafficClass::Enqueue(Ptr<Packet> packet){
 
 /*Warning: Only call this from DiffServ class when you are sure the packet does not satisfy any traffic class classification*/
 bool TrafficClass::EnqueueDefault(Ptr<Packet> packet){
-    cout << "Enqueued to default priority: " << this->getPrioirtyLvl() << endl;
+    cout << "Enqueued to default priority: " << this->getPriorityLvl() << endl;
     m_queue.push(packet);
     packets += 1;
     return true;
@@ -161,7 +161,7 @@ void TrafficClass::setDeficitCounter(uint32_t set_deficit_counter){
 }
 
 /*Getters*/
-uint32_t TrafficClass::getPrioirtyLvl(){
+uint32_t TrafficClass::getPriorityLvl(){
     return priority_level;
 }
 
