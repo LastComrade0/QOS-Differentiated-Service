@@ -32,6 +32,8 @@ class SPQ : public DiffServ<Packet>{
         void CreateTrafficClassesVector(vector<TrafficClass*> set_traffic_vector);
 
         void CheckQueue();
+
+        vector<TrafficClass*> getTrafficVector();
     
 };
 

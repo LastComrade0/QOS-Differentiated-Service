@@ -29,7 +29,7 @@ void DiffServ<Packet>::AddTrafficClass(TrafficClass* tc) {
 
 template <typename Packet>
 bool DiffServ<Packet>::Enqueue(Ptr<Packet> packet) {
-    int class_count = 1;
+    int class_count = 0;
     
     for(TrafficClass *tc : q_class){
         cout << "Iterating enqueue class " << class_count << endl;

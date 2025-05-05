@@ -31,13 +31,23 @@ Ptr<Packet> SPQ<Packet>::Schedule(){
 
 template<typename Packet>
 uint32_t SPQ<Packet>::Classify(Ptr<Packet> packet){
+    const uint32_t INVALID_CLASS_ID = std::numeric_limits<uint32_t>::max();
+
     for(uint32_t traffic_id = 0; traffic_id < this->q_class.size(); traffic_id += 1){
         if(this->q_class[traffic_id]->match(packet)){
             return traffic_id;
         }
     }
 
-    return -1;
+    cout << "Classifying Default... " << endl;
+    for(uint32_t traffic_default = 0; traffic_default < this->q_class.size(); traffic_default += 1){
+        if(this->q_class[traffic_default]->isDefaultCheck()){
+            cout << "Classifying at default traffic calss with priority: " << traffic_default << endl;
+            return traffic_default;
+        }
+    }
+
+    return INVALID_CLASS_ID;
 }
 
 
@@ -139,4 +149,6 @@ int main(){
     spq->CreateTrafficClassesVector(traffic_vectors);
 
     spq->CheckQueue();
+
+    
 }
