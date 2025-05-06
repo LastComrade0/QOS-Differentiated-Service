@@ -231,23 +231,27 @@ int main(){
     cout << "Current size for class " << classId2 << ": " << spq->getTrafficVector()[classId2]->getQueueSize() << endl;
 
     //Test Schedule
-    Ptr<Packet> scheduledPkt = spq->testDequeue();
+    for(int pkt_count = 2; pkt_count > 0; pkt_count -= 1){
+        cout << "-------------------" << endl;
+        Ptr<Packet> scheduledPkt = spq->testDequeue();
 
-    Ipv4Header ipHeaderExtract;
-    TcpHeader tcpHeaderExtract;
+        Ipv4Header ipHeaderExtract;
+        TcpHeader tcpHeaderExtract;
 
     
 
-    if (scheduledPkt) {
-        scheduledPkt->RemoveHeader(ipHeaderExtract);
-        scheduledPkt->RemoveHeader(tcpHeaderExtract);
+        if (scheduledPkt) {
+            scheduledPkt->RemoveHeader(ipHeaderExtract);
+            scheduledPkt->RemoveHeader(tcpHeaderExtract);
 
-        cout << "Scheduled a packet successfully!" << endl;
-        cout << "Destination IP: " << ipHeaderExtract.GetDestination() << endl;
-        cout << "Protocol: " << (uint16_t)ipHeaderExtract.GetProtocol() << endl;
-        cout << "Destination port: " << tcpHeaderExtract.GetDestinationPort() << endl;
-    } else {
-        cout << "Schedule returned nullptr — all queues empty." << endl;
-    }   
+            cout << "Scheduled a packet successfully!" << endl;
+            cout << "Destination IP: " << ipHeaderExtract.GetDestination() << endl;
+            cout << "Protocol: " << (uint16_t)ipHeaderExtract.GetProtocol() << endl;
+            cout << "Destination port: " << tcpHeaderExtract.GetDestinationPort() << endl;
+        } else {
+            cout << "Schedule returned nullptr — all queues empty." << endl;
+        }
+    }
+
 
 }
