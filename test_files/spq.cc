@@ -113,7 +113,10 @@ int main(){
     tc1->setDefault(false);
     tc1->setMaxPackets(30);
     tc1->setPriorityLvl(3);
-
+    Destination IP: 0.0.0.0
+    Protocol: 6
+    Destination port: 80
+    
     Filter *f1_0 = new Filter();
     f1_0->addElement(new DestPortNumber(80));
     f1_0->addElement(new ProtocolNumber(1));

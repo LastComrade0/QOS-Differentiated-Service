@@ -1,5 +1,5 @@
-#ifndef SPQ_H
-#define SPQ_H
+#ifndef DRR_H
+#define DRR_H
 
 #include "ns3/core-module.h"
 #include "ns3/network-module.h"
@@ -19,7 +19,7 @@
 using namespace ns3;
 using namespace std;
 
-struct SPQConfig{
+struct DRRConfig{
     /* data */
     uint32_t class_id;
     uint32_t max_packets;
@@ -31,11 +31,11 @@ struct SPQConfig{
 
 
 template<typename Packet>
-class SPQ : public DiffServ<Packet>{
+class DRR : public DiffServ<Packet>{
     public:
-        SPQ();
-        //SPQ(vector<MyConfig> configs);
-        ~SPQ();
+        DRR();
+        //DRR(vector<MyConfig> configs);
+        ~DRR();
 
         Ptr<Packet> Schedule() override;
         uint32_t Classify(Ptr<Packet> p) override;
@@ -49,6 +49,9 @@ class SPQ : public DiffServ<Packet>{
         bool testEnqueue(Ptr<Packet> packet);
 
         Ptr<Packet> testDequeue();
+
+    private:
+        uint32_t current_robin;
     
 };
 

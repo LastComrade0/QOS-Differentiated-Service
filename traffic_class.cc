@@ -17,7 +17,7 @@ using namespace ns3;
 TrafficClass::TrafficClass(){}
 
 //DRR
-TrafficClass::TrafficClass(uint32_t max_packets, uint32_t quantum_size, uint32_t *deficit_counter, bool isDefault,
+TrafficClass::TrafficClass(uint32_t max_packets, uint32_t quantum_size, uint32_t deficit_counter, bool isDefault,
                             Ipv4Address src_ip, Ipv4Mask src_mask, uint32_t src_port,
                             Ipv4Address dest_ip, Ipv4Mask dest_mask, uint32_t dest_port, uint32_t protocol_number) : maxPackets(max_packets), quantum_size(quantum_size),
                                                                                                                      deficit_counter(deficit_counter), isDefault(isDefault) {
@@ -157,7 +157,7 @@ void TrafficClass::setQuantumSize(uint32_t set_quantum_size){
 }
 
 void TrafficClass::setDeficitCounter(uint32_t set_deficit_counter){
-    *deficit_counter = set_deficit_counter;
+    deficit_counter = set_deficit_counter;
 }
 
 /*Getters*/
@@ -186,7 +186,7 @@ uint32_t TrafficClass::getQuantumSize(){
 }
 
 uint32_t TrafficClass::getDeficitCounter(){
-    return *deficit_counter;
+    return deficit_counter;
 }
 
 
