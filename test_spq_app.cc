@@ -4,10 +4,14 @@
 #include "ns3/point-to-point-module.h"
 #include "ns3/applications-module.h"
 #include "ns3/ipv4-header.h"
+#include "ns3/ipv4-global-routing-helper.h"
+#include "ns3/flow-monitor-helper.h"
+#include "ns3/ppp-header.h"
 #include "ns3/tcp-header.h"
 #include "ns3/udp-header.h"
 
 #include "spq.h"
+#include "udp_application.h"
 #include <map>
 #include <vector>
 #include <queue>
@@ -162,7 +166,7 @@ FilterElement* set_element(string key, string value){
     cout << "key: " << key << endl;
     cout << "value: " << value << endl;
 
-    if(key == "DestPortNumber"){
+    if(Trim(key) == "DestPortNumber"){
         cout << "Dest Port value: " << static_cast<uint32_t>(stoul(value)) << endl;
         return new DestPortNumber(static_cast<uint32_t>(stoul(value)));
         
@@ -187,9 +191,18 @@ FilterElement* set_element(string key, string value){
     return nullptr;
 }
 
+void ReceivePacketCallback(Ptr<Socket> socket) {
+    Ptr<Packet> packet;
+    while ((packet = socket->Recv())) {
+        cout << "Packet received: " << packet->GetSize() << " bytes" << endl;
+    }
+}
 
 int main(int argc, char* argv[]){
     cout << "Running SPQ..." << endl;
+
+    LogComponentEnable("UdpApplication", LOG_LEVEL_INFO);
+
 
     Ptr<SPQ<Packet>> spq = CreateObject<SPQ<Packet>>();
     vector<TrafficClass*> traffic_vectors;
@@ -351,85 +364,69 @@ int main(int argc, char* argv[]){
 
     spq->CheckQueue();
 
-    //Create Packet 1
-    // --- Construct packet: UDP port 80 ---
-    Ptr<Packet> pkt = Create<Packet>(100);
-    Ipv4Header ipHeader;
-    ipHeader.SetProtocol(17); // UDP
-    ipHeader.SetDestination("0.0.0.0");
- 
-    UdpHeader udpHeader;
-    udpHeader.SetDestinationPort(80);
- 
-    pkt->AddHeader(udpHeader);
-    pkt->AddHeader(ipHeader);
+    // === ns-3 Topology Setup ===
+    NodeContainer nodes;
 
-    //Create packet 2 
-    Ptr<Packet> pkt2 = Create<Packet>(100);
-    Ipv4Header ipHeader2;
-    ipHeader2.SetProtocol(17); // UDP
-    ipHeader2.SetDestination("0.0.0.1");
- 
-    UdpHeader udpHeader2;
-    udpHeader2.SetDestinationPort(70);
- 
-    pkt2->AddHeader(udpHeader2);
-    pkt2->AddHeader(ipHeader2);
+    nodes.Create(3);
 
-    //Classify packet 1
-    uint32_t classId = spq->Classify(pkt);
-    cout << "Classified into class: " << classId << endl;
+    PointToPointHelper p2p;
+    p2p.SetDeviceAttribute("DataRate", StringValue("4Mbps"));
+    p2p.SetChannelAttribute("Delay", StringValue("2ms"));
 
-    if (classId >= spq->getTrafficVector().size()) {
-        cerr << "Classification failed!" << endl;
-        return 1;
-    }
-    
-    cout << " - * - * - * - * - * - * - * - * - * - * - * - * - * - *" << endl;
+    NetDeviceContainer devices1 = p2p.Install(nodes.Get(0), nodes.Get(1));
+    NetDeviceContainer devices2 = p2p.Install(nodes.Get(1), nodes.Get(2));
 
-    // --- Enqueue packet 1 into correct class ---
-    bool success = spq->testEnqueue(pkt);
-    cout << "Enqueue success: " << (success ? "true" : "false") << endl;
+    InternetStackHelper stack;
+    stack.Install(nodes);
 
-    cout << "Current size for class " << classId << ": " << spq->getTrafficVector()[classId]->getQueueSize() << endl;
+    Ipv4AddressHelper address;
+    address.SetBase("10.1.1.0", "255.255.255.0");
+    Ipv4InterfaceContainer interfaces1 = address.Assign(devices1);
 
-    //Classify packet 2
-    uint32_t classId2 = spq->Classify(pkt2);
-    cout << "Classified into class: " << classId2 << endl;
+    address.SetBase("10.1.2.0", "255.255.255.0");
+    Ipv4InterfaceContainer interfaces2 = address.Assign(devices2);
 
-    if (classId2 >= spq->getTrafficVector().size()) {
-        cerr << "Classification failed!" << endl;
+    // Attach SPQ to Router Node (Node 1)
+    Ptr<PointToPointNetDevice> routerDevice = devices2.Get(0)->GetObject<PointToPointNetDevice>();
+    if (routerDevice == nullptr) {
+        std::cerr << "Failed to get PointToPointNetDevice on router." << std::endl;
         return 1;
     }
 
-    // --- Enqueue packet 2 into correct class ---
-    bool success2 = spq->testEnqueue(pkt2); //Enqueue direct call or under Classify()?
-    cout << "Enqueue success: " << (success2 ? "true" : "false") << endl;
+    routerDevice->SetQueue(spq);
 
-    cout << "Current size for class " << classId2 << ": " << spq->getTrafficVector()[classId2]->getQueueSize() << endl;
+    // Set up UDP sender applications
+    Ptr<Socket> udpSocketA = Socket::CreateSocket(nodes.Get(0), UdpSocketFactory::GetTypeId());
+    Ptr<Socket> udpSocketB = Socket::CreateSocket(nodes.Get(0), UdpSocketFactory::GetTypeId());
 
-    //Test Schedule
-    for(int pkt_count = 2; pkt_count > 0; pkt_count -= 1){
-        cout << "-------------------" << endl;
-        Ptr<Packet> scheduledPkt = spq->testDequeue();
+    Address destAddress = InetSocketAddress(interfaces2.GetAddress(1), 8080);
 
-        Ipv4Header ipHeaderExtract;
-        UdpHeader udpHeaderExtract;
+    // Application B (Low Priority) starts first
+    Ptr<UdpApplication> appB = CreateObject<UdpApplication>();
+    NS_OBJECT_ENSURE_REGISTERED(UdpApplication);
+    appB->Setup(udpSocketB, destAddress, 1000, 100, MilliSeconds(10));
+    nodes.Get(0)->AddApplication(appB);
+    appB->SetStartTime(Seconds(1.0));
+    appB->SetStopTime(Seconds(10.0));
 
-    
+    // Application A (High Priority) starts later
+    Ptr<UdpApplication> appA = CreateObject<UdpApplication>();
+    appA->Setup(udpSocketA, destAddress, 1000, 100, MilliSeconds(10));
+    nodes.Get(0)->AddApplication(appA);
+    appA->SetStartTime(Seconds(3.0));
+    appA->SetStopTime(Seconds(10.0));
 
-        if (scheduledPkt) {
-            scheduledPkt->RemoveHeader(ipHeaderExtract);
-            scheduledPkt->RemoveHeader(udpHeaderExtract);
+    // Receiver (Server)
+    Ptr<Socket> sink = Socket::CreateSocket(nodes.Get(2), UdpSocketFactory::GetTypeId());
+    sink->Bind(InetSocketAddress(Ipv4Address::GetAny(), 8080));
+    sink->Listen();
+    sink->SetRecvCallback(MakeCallback(&ReceivePacketCallback));
 
-            cout << "Scheduled a packet successfully!" << endl;
-            cout << "Destination IP: " << ipHeaderExtract.GetDestination() << endl;
-            cout << "Protocol: " << (uint16_t)ipHeaderExtract.GetProtocol() << endl;
-            cout << "Destination port: " << udpHeaderExtract.GetDestinationPort() << endl;
-        } else {
-            cout << "Schedule returned nullptr — all queues empty." << endl;
-        }
-    }
+    Simulator::Run();
+    Simulator::Destroy();
+
+    return 0;
+
 
 
 }
