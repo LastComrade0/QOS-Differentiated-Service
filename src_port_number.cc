@@ -29,10 +29,10 @@ bool SrcPortNumber::match(Ptr<Packet> packet) const{
     Ipv4Header ipv4Header;
     copy->RemoveHeader(ipv4Header); //Remove the ip header from that copied packet
     
-    TcpHeader tcpHeader; //Or UDP?
-    copy->PeekHeader(tcpHeader);
+    UdpHeader udpHeader; //Or UDP?
+    copy->PeekHeader(udpHeader);
 
-    uint16_t extracted_src_port = tcpHeader.GetSourcePort();
+    uint16_t extracted_src_port = udpHeader.GetSourcePort();
 
     cout << "Packet src port number: " << static_cast<uint32_t>(extracted_src_port) << endl;
     cout << "Criteria srcc port number: " << my_src_port << endl;

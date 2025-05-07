@@ -30,10 +30,10 @@ bool DestPortNumber::match(Ptr<Packet> packet) const{
     Ipv4Header ipv4Header;
     copy->RemoveHeader(ipv4Header); //Remove the ip header from that copied packet
     
-    TcpHeader tcpHeader; //Or UDP?
-    copy->PeekHeader(tcpHeader);
+    UdpHeader udpHeader; //Or UDP?
+    copy->PeekHeader(udpHeader);
 
-    uint16_t extracted_dest_port = tcpHeader.GetDestinationPort();
+    uint16_t extracted_dest_port = udpHeader.GetDestinationPort();
 
     cout << "Packet dest port number : " << static_cast<uint32_t>(extracted_dest_port) << endl;
     cout << "Criteria dest port number: " << my_dest_port << endl;

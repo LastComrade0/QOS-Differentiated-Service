@@ -8,6 +8,7 @@
 #include "ns3/applications-module.h"
 #include "ns3/ipv4-header.h"
 #include "ns3/tcp-header.h"
+#include "ns3/udp-header.h"
 
 #include "diffserv.h"
 #include "traffic_class.h"

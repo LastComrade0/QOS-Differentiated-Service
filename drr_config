@@ -5,7 +5,7 @@ quantumSize: 500
 isDefault: false
 Filter: 
     DestPortNumber: 80
-    ProtocolNumber: 6
+    ProtocolNumber: 17
     END_FILTER
 Filter:
     DestIPAddress: 8.8.8.8
@@ -22,7 +22,7 @@ Filter:
     END_FILTER
 Filter: 
     DestPortNumber: 10
-    ProtocolNumber: 6
+    ProtocolNumber: 17
     END_FILTER
 ---
 

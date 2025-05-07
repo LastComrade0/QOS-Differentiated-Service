@@ -5,8 +5,9 @@
 #include "ns3/applications-module.h"
 #include "ns3/ipv4-header.h"
 #include "ns3/tcp-header.h"
+#include "ns3/udp-header.h"
 
-#include "spq.h"
+#include "drr.h"
 #include <map>
 #include <vector>
 #include <queue>
@@ -17,23 +18,66 @@ using namespace ns3;
 using namespace std;
 
 template<typename Packet>
-SPQ<Packet>::SPQ(){}
-
-template<typename Packet>
-SPQ<Packet>::~SPQ(){}
-
-template<typename Packet>
-Ptr<Packet> SPQ<Packet>::Schedule(){
-    for(TrafficClass *tc : this->q_class){
-        if(!tc->isEmpty()){
-            return tc->Dequeue();
-        }
-    }
-    return nullptr;
+DRR<Packet>::DRR(){
+    current_robin = -1;
 }
 
 template<typename Packet>
-uint32_t SPQ<Packet>::Classify(Ptr<Packet> packet){
+DRR<Packet>::~DRR(){}
+
+template<typename Packet>
+Ptr<Packet> DRR<Packet>::Schedule(){
+    uint32_t class_count = this->q_class.size();
+    cout << "Class count: " << class_count << endl;
+
+    // Ensure current_robin is valid
+    if (current_robin < 0 || current_robin >= class_count) {
+        current_robin = 0;
+    }
+
+    // Round-robin scheduling for all classes
+    for (uint32_t i = 0; i < class_count; ++i) {
+        uint32_t index = (current_robin + i) % class_count;
+        TrafficClass *tc = this->q_class[index];
+        cout << "[Schedule] Checking class " << index << ", queue size: " << tc->getQueueSize() << endl;
+
+        if (!tc->isEmpty()) {
+            // Add quantum to deficit counter
+            tc->setDeficitCounter(tc->getDeficitCounter() + tc->getQuantumSize());
+            cout << "[Schedule] Updated deficitCounter: " << tc->getDeficitCounter() << ", quantum: " << tc->getQuantumSize() << endl;
+
+            while (!tc->isEmpty()) {
+                Ptr<Packet> packet = tc->peek();
+                if (!packet) {
+                    cout << "[Schedule] NULL packet from peek(), breaking inner loop" << endl;
+                    break;
+                }
+
+                uint32_t size = packet->GetSize();
+                cout << "[Schedule] Packet size: " << size << ", deficit: " << tc->getDeficitCounter() << endl;
+
+                // Check if deficit is enough to send the packet
+                if (size <= tc->getDeficitCounter()) {
+                    tc->setDeficitCounter(tc->getDeficitCounter() - size);
+                    cout << "[Schedule] Sending packet..." << endl;
+                    current_robin = (index + 1) % class_count;
+                    return tc->Dequeue();
+                } else {
+                    cout << "[Schedule] Deficit too small, skipping..." << endl;
+                    break;
+                }
+            }
+        }
+    }
+
+    // If no packets were scheduled, round-robin continues
+    current_robin = (current_robin + 1) % class_count;
+    return nullptr;
+}
+
+
+template<typename Packet>
+uint32_t DRR<Packet>::Classify(Ptr<Packet> packet){
     const uint32_t INVALID_CLASS_ID = std::numeric_limits<uint32_t>::max();
     
     for(uint32_t traffic_id = 0; traffic_id < this->q_class.size(); traffic_id += 1){
@@ -55,7 +99,7 @@ uint32_t SPQ<Packet>::Classify(Ptr<Packet> packet){
 
 
 template<typename Packet>
-void SPQ<Packet>::CreateTrafficClassesVector(vector<TrafficClass*> set_traffic_vector){
+void DRR<Packet>::CreateTrafficClassesVector(vector<TrafficClass*> set_traffic_vector){
     this->q_class = set_traffic_vector;
 }
 
@@ -67,35 +111,28 @@ void insertFilter(TrafficClass* tc, Filter *filter){
 }
 
 void insertTrafficClass(vector<TrafficClass*>& traffic_class_vector_local, TrafficClass* tc){
-    auto it = traffic_class_vector_local.begin();
-    cout << "Priority to insert: " << tc->getPriorityLvl() << endl;
-    while (it != traffic_class_vector_local.end() && (*it)->getPriorityLvl() > tc->getPriorityLvl()) {
-        size_t index = std::distance(traffic_class_vector_local.begin(), it);
-        cout << "To insert index: " << index << endl;
-        ++it;
-    }
-    traffic_class_vector_local.insert(it, tc);
+    traffic_class_vector_local.push_back(tc);
 }
 
 template<typename Packet>
-void SPQ<Packet>::CheckQueue(){
+void DRR<Packet>::CheckQueue(){
     for(TrafficClass* it_traffic: this->q_class){
-        cout << "Iterate priority: " << it_traffic->getPriorityLvl() << ", isDefault? " << it_traffic->isDefaultCheck() << endl;
+        cout << "Iterate priority: " << it_traffic->getQueueSize() << ", isDefault? " << it_traffic->isDefaultCheck() << endl;
     }
 }
 
 template<typename Packet>
-vector<TrafficClass*> SPQ<Packet>::getTrafficVector(){
+vector<TrafficClass*> DRR<Packet>::getTrafficVector(){
     return this->q_class;
 }
 
 template<typename Packet>
-bool SPQ<Packet>::testEnqueue(Ptr<Packet> packet){
+bool DRR<Packet>::testEnqueue(Ptr<Packet> packet){
     return this->DoEnqueue(packet);
 }
 
 template<typename Packet>
-Ptr<Packet> SPQ<Packet>::testDequeue(){
+Ptr<Packet> DRR<Packet>::testDequeue(){
     return this->DoDequeue();
 }
 
@@ -116,7 +153,7 @@ string Trim(const string& s){
     return "";
 }
 
-void set_config(SPQConfig *cfg, string current_line, vector<map<string, string>> *raw_filters, map<string, string> &current_filter){
+void set_config(DRRConfig *cfg, string current_line, vector<map<string, string>> *raw_filters, map<string, string> &current_filter){
     if(current_line.empty() || current_line[0] == '#'){
         //cout << "Ignore # or empty line" << endl;
         return;
@@ -129,9 +166,9 @@ void set_config(SPQConfig *cfg, string current_line, vector<map<string, string>>
         cfg->max_packets = stoi(current_line.substr(11));
         cout << "Max packets: " << cfg->max_packets << endl;
     }
-    else if(current_line.find("priorityLevel:") == 0){
-        cfg->priority_level = stoi(current_line.substr(14));
-        cout << "Priority level: " << cfg->priority_level << endl;
+    else if(current_line.find("quantumSize:") == 0){
+        cfg->quantum_size = stoi(current_line.substr(14));
+        cout << "Quantum size: " << cfg->quantum_size << endl;
     }
     else if(current_line.find("isDefault") == 0){
         cfg->isDefault = (current_line.substr(11) == "true");
@@ -188,17 +225,17 @@ FilterElement* set_element(string key, string value){
 
 
 int main(int argc, char* argv[]){
-    cout << "Running SPQ..." << endl;
+    cout << "Running DRR..." << endl;
 
-    Ptr<SPQ<Packet>> spq = CreateObject<SPQ<Packet>>();
+    Ptr<DRR<Packet>> drr = CreateObject<DRR<Packet>>();
     vector<TrafficClass*> traffic_vectors;
 
-    //./ns3 run "test_spq_config --spq=scratch/QOS-Differentiated-Service/spq_config" 
+    //./ns3 run "test_drr_config --drr=scratch/QOS-Differentiated-Service/drr_config" 
     //Config file path
     string file_name;
 
     CommandLine cmd(__FILE__);
-    cmd.AddValue("spq", "file name", file_name);
+    cmd.AddValue("drr", "file name", file_name);
     cmd.Parse(argc, argv);
 
     //Read config
@@ -211,7 +248,7 @@ int main(int argc, char* argv[]){
 
     cout << "File name: " << file_name << endl;
 
-    vector<SPQConfig> spq_config_vector;
+    vector<DRRConfig> drr_config_vector;
     vector<string> block;
     string line;
 
@@ -223,7 +260,7 @@ int main(int argc, char* argv[]){
         if(trimmed == "---"){
             //cout << "***End of Traffic, parsing current traffic***" << endl;
 
-            SPQConfig current_traffic_config;
+            DRRConfig current_traffic_config;
             vector<map<string, string>> raw_filters;
             map<string, string> current_filter;
             bool inFilter = false;
@@ -243,8 +280,8 @@ int main(int argc, char* argv[]){
                     current_traffic_config.max_packets = stoi(block_line.substr(11));
                     //cout << "Max packets: " << current_traffic_config.max_packets << endl;
                 }
-                else if(block_line.find("priorityLevel:") == 0){
-                    current_traffic_config.priority_level = stoi(block_line.substr(14));
+                else if(block_line.find("quantumSize:") == 0){
+                    current_traffic_config.quantum_size = stoi(block_line.substr(12));
                     //cout << "Priority level: " << current_traffic_config.priority_level << endl;
                 }
                 else if(block_line.find("isDefault") == 0){
@@ -296,7 +333,7 @@ int main(int argc, char* argv[]){
             
             current_traffic_config.raw_filter_vector = raw_filters;
 
-            spq_config_vector.push_back(current_traffic_config);
+            drr_config_vector.push_back(current_traffic_config);
             block.clear();
 
             //cout << "******" << endl;
@@ -308,23 +345,25 @@ int main(int argc, char* argv[]){
     }
 
     //Deal with parsed config struct
-    for(SPQConfig spq_config: spq_config_vector){
+    for(DRRConfig drr_config: drr_config_vector){
         TrafficClass *tc = new TrafficClass();
 
-        cout << "Class id: " << spq_config.class_id << endl;
-        cout << "Max packets: " << spq_config.max_packets << endl;
-        tc->setMaxPackets(spq_config.max_packets);
+        cout << "Class id: " << drr_config.class_id << endl;
+        cout << "Max packets: " << drr_config.max_packets << endl;
+        tc->setMaxPackets(drr_config.max_packets);
 
-        cout << "Priority level: " << spq_config.priority_level << endl;
-        tc->setPriorityLvl(spq_config.priority_level);
+        cout << "Quantum Size: " << drr_config.quantum_size << endl;
+        tc->setQuantumSize(drr_config.quantum_size);
 
-        cout << "Is Default: " << spq_config.isDefault << endl;
-        tc->setDefault(spq_config.isDefault);
+        tc->setDeficitCounter(0);
 
-        for (size_t i = 0; i < spq_config.raw_filter_vector.size(); ++i) {
+        cout << "Is Default: " << drr_config.isDefault << endl;
+        tc->setDefault(drr_config.isDefault);
+
+        for (size_t i = 0; i < drr_config.raw_filter_vector.size(); ++i) {
             cout << "Filter " << i << ":" << endl;
             Filter *filter = new Filter();
-            for (const auto& pair : spq_config.raw_filter_vector[i]) {
+            for (const auto& pair : drr_config.raw_filter_vector[i]) {
                 
                 cout << "  " << pair.first << pair.second << endl;
                 const string& key = pair.first;
@@ -339,47 +378,58 @@ int main(int argc, char* argv[]){
             tc->addFilter(filter);
         }
 
-        insertTrafficClass(traffic_vectors, tc);
-        //traffic_vectors.push_back(tc);
+        traffic_vectors.push_back(tc);
         cout << "---End of Traffic---" << endl;
 
         
     }
 
-    spq->CreateTrafficClassesVector(traffic_vectors);
+    drr->CreateTrafficClassesVector(traffic_vectors);
 
-    spq->CheckQueue();
+    drr->CheckQueue();
 
     //Create Packet 1
-    // --- Construct packet: TCP port 80 ---
+    // --- Construct packet: UDP port 80 ---
     Ptr<Packet> pkt = Create<Packet>(100);
     Ipv4Header ipHeader;
-    ipHeader.SetProtocol(6); // TCP
+    ipHeader.SetProtocol(17); // UDP
     ipHeader.SetDestination("0.0.0.0");
  
-    TcpHeader tcpHeader;
-    tcpHeader.SetDestinationPort(80);
+    UdpHeader udpHeader;
+    udpHeader.SetDestinationPort(80);
  
-    pkt->AddHeader(tcpHeader);
+    pkt->AddHeader(udpHeader);
     pkt->AddHeader(ipHeader);
 
     //Create packet 2 
     Ptr<Packet> pkt2 = Create<Packet>(100);
     Ipv4Header ipHeader2;
-    ipHeader2.SetProtocol(6); // TCP
+    ipHeader2.SetProtocol(17); // UDP
     ipHeader2.SetDestination("0.0.0.1");
  
-    TcpHeader tcpHeader2;
-    tcpHeader2.SetDestinationPort(70);
+    UdpHeader udpHeader2;
+    udpHeader2.SetDestinationPort(70);
  
-    pkt2->AddHeader(tcpHeader2);
+    pkt2->AddHeader(udpHeader2);
     pkt2->AddHeader(ipHeader2);
 
+    //Create packet3
+    Ptr<Packet> pkt3 = Create<Packet>(200);
+    Ipv4Header ipHeader3;
+    ipHeader3.SetProtocol(17); // UDP
+    ipHeader3.SetDestination("10.0.0.1");
+
+    UdpHeader udpHeader3;
+    udpHeader3.SetDestinationPort(70);
+ 
+    pkt3->AddHeader(udpHeader3);
+    pkt3->AddHeader(ipHeader3);
+
     //Classify packet 1
-    uint32_t classId = spq->Classify(pkt);
+    uint32_t classId = drr->Classify(pkt);
     cout << "Classified into class: " << classId << endl;
 
-    if (classId >= spq->getTrafficVector().size()) {
+    if (classId >= drr->getTrafficVector().size()) {
         cerr << "Classification failed!" << endl;
         return 1;
     }
@@ -387,44 +437,60 @@ int main(int argc, char* argv[]){
     cout << " - * - * - * - * - * - * - * - * - * - * - * - * - * - *" << endl;
 
     // --- Enqueue packet 1 into correct class ---
-    bool success = spq->testEnqueue(pkt);
+    bool success = drr->testEnqueue(pkt);
     cout << "Enqueue success: " << (success ? "true" : "false") << endl;
 
-    cout << "Current size for class " << classId << ": " << spq->getTrafficVector()[classId]->getQueueSize() << endl;
+    cout << "Current size for class " << classId << ": " << drr->getTrafficVector()[classId]->getQueueSize() << endl;
 
     //Classify packet 2
-    uint32_t classId2 = spq->Classify(pkt2);
+    uint32_t classId2 = drr->Classify(pkt2);
     cout << "Classified into class: " << classId2 << endl;
 
-    if (classId2 >= spq->getTrafficVector().size()) {
+    if (classId2 >= drr->getTrafficVector().size()) {
         cerr << "Classification failed!" << endl;
         return 1;
     }
 
     // --- Enqueue packet 2 into correct class ---
-    bool success2 = spq->testEnqueue(pkt2); //Enqueue direct call or under Classify()?
+    bool success2 = drr->testEnqueue(pkt2); //Enqueue direct call or under Classify()?
     cout << "Enqueue success: " << (success2 ? "true" : "false") << endl;
 
-    cout << "Current size for class " << classId2 << ": " << spq->getTrafficVector()[classId2]->getQueueSize() << endl;
+    cout << "Current size for class " << classId2 << ": " << drr->getTrafficVector()[classId2]->getQueueSize() << endl;
+
+    //Classify packet 3
+    uint32_t classId3 = drr->Classify(pkt3);
+    cout << "Classified into class: " << classId3 << endl;
+
+    if (classId3 >= drr->getTrafficVector().size()) {
+        cerr << "Classification failed!" << endl;
+        return 1;
+    }
+
+    // --- Enqueue packet 2 into correct class ---
+    bool success3 = drr->testEnqueue(pkt3); //Enqueue direct call or under Classify()?
+    cout << "Enqueue success: " << (success3 ? "true" : "false") << endl;
+
+    cout << "Current size for class " << classId3 << ": " << drr->getTrafficVector()[classId3]->getQueueSize() << endl;
 
     //Test Schedule
-    for(int pkt_count = 2; pkt_count > 0; pkt_count -= 1){
+
+    for(int pkt_count = 3; pkt_count > 0; pkt_count -= 1){
         cout << "-------------------" << endl;
-        Ptr<Packet> scheduledPkt = spq->testDequeue();
+        Ptr<Packet> scheduledPkt = drr->testDequeue();
 
         Ipv4Header ipHeaderExtract;
-        TcpHeader tcpHeaderExtract;
+        UdpHeader udpHeaderExtract;
 
     
 
         if (scheduledPkt) {
             scheduledPkt->RemoveHeader(ipHeaderExtract);
-            scheduledPkt->RemoveHeader(tcpHeaderExtract);
+            scheduledPkt->RemoveHeader(udpHeaderExtract);
 
             cout << "Scheduled a packet successfully!" << endl;
             cout << "Destination IP: " << ipHeaderExtract.GetDestination() << endl;
             cout << "Protocol: " << (uint16_t)ipHeaderExtract.GetProtocol() << endl;
-            cout << "Destination port: " << tcpHeaderExtract.GetDestinationPort() << endl;
+            cout << "Destination port: " << udpHeaderExtract.GetDestinationPort() << endl;
         } else {
             cout << "Schedule returned nullptr — all queues empty." << endl;
         }
@@ -432,3 +498,56 @@ int main(int argc, char* argv[]){
 
 
 }
+
+
+/*Alternate DRR Schedule method*/
+// template<typename Packet>
+// Ptr<Packet> DRR<Packet>::Schedule(){
+//     uint32_t class_count = this->q_class.size();
+
+//     cout << "Class count: " << class_count << endl;
+
+//     for(uint32_t i = 0; i < class_count; i += 1){
+//         current_robin = (current_robin + 1) % class_count;
+//         cout << "Current robin: " << current_robin << endl;
+
+//         TrafficClass *tc = this->q_class[current_robin];
+//         cout << "Current Traffic Class: " << endl;
+
+//         if(!tc->isEmpty()){
+//             tc->setDeficitCounter(tc->getDeficitCounter() + tc->getQuantumSize());
+            
+
+//             while(!tc->isEmpty()){
+//                 cout << "[Schedule] Checking class " << current_robin << ", queue size: " << tc->getQueueSize() << endl;
+//                 Ptr<Packet> packet = tc->peek();
+
+//                 cout << "[Schedule] Updated deficitCounter: " << tc->getDeficitCounter() << ", quantum: " << tc->getQuantumSize() << endl;
+
+//                 if (!packet) {
+//                     cout << "[Schedule] NULL packet from peek(), breaking inner loop" << endl;
+//                     break; // nothing to process
+//                 }
+
+//                 uint32_t size = packet->GetSize();
+//                 cout << "[Schedule] Packet size: " << size << ", deficit: " << tc->getDeficitCounter() << endl;
+
+//                 if(size <= tc->getDeficitCounter()){
+//                     tc->setDeficitCounter(tc->getDeficitCounter() - size);
+//                     cout << "[Schedule] Sending packet..." << endl;
+//                     return tc->Dequeue();
+//                 }
+//                 else{
+//                     cout << "[Schedule] Deficit too small, skipping..." << endl;
+//                     break;
+//                 }
+//             }
+
+
+//             if(tc->isEmpty()){
+//                 tc->setDeficitCounter(0);
+//             }
+//         }
+//     }
+//     return nullptr;
+// }
