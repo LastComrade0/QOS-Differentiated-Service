@@ -16,6 +16,9 @@
 #include "dest_port_number.h"
 #include "protocol_number.h"
 
+#include <vector>
+#include <map>
+
 using namespace ns3;
 using namespace std;
 
@@ -25,7 +28,7 @@ struct SPQConfig{
     uint32_t max_packets;
     uint32_t priority_level;
     bool isDefault;
-    vector<Filter*> filter_vector;
+    vector<map<string, string>> raw_filter_vector;
 
 };
 
@@ -53,6 +56,8 @@ class SPQ : public DiffServ<Packet>{
 };
 
 void insertFilter(TrafficClass* tc, Filter *filter);
+
+FilterElement* set_element(string key, string value);
 
 
 #endif

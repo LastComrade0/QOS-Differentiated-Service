@@ -23,9 +23,9 @@ struct DRRConfig{
     /* data */
     uint32_t class_id;
     uint32_t max_packets;
-    uint32_t priority_level;
+    uint32_t quantum_size;
     bool isDefault;
-    vector<Filter*> filter_vector;
+    vector<map<string, string>> raw_filter_vector;
 
 };
 
@@ -57,5 +57,6 @@ class DRR : public DiffServ<Packet>{
 
 void insertFilter(TrafficClass* tc, Filter *filter);
 
+FilterElement* set_element(string key, string value);
 
 #endif
