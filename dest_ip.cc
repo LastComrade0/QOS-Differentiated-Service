@@ -1,5 +1,6 @@
 #include "filter_element.h"
 #include "ns3/ipv4-address.h"
+#include "ns3/ppp-header.h"
 #include "ns3/ipv4-header.h"
 #include "ns3/type-id.h" 
 #include "dest_ip.h"
@@ -21,14 +22,21 @@ TypeId DestIPAddress::GetTypeId(void){
 DestIPAddress::DestIPAddress(Ipv4Address address) : dest_address(address){}
 
 bool DestIPAddress::match(Ptr<Packet> packet) const{
-    Ipv4Header ipv4Header;
-            
-    packet->PeekHeader(ipv4Header);
 
-    cout << "Packet destination address: " << ipv4Header.GetDestination() << endl;
+    Ptr<Packet> copy = packet->Copy();
+
+    PppHeader pppHeader;
+    Ipv4Header ipv4Header;
+
+    copy->RemoveHeader(pppHeader);
+    copy->PeekHeader(ipv4Header); 
+    
+    Ipv4Address extracted_dest_address = ipv4Header.GetDestination();
+
+    cout << "Packet destination address: " << extracted_dest_address << endl;
     cout << "Criteria destination address: " << dest_address << endl;
     
-    return ipv4Header.GetDestination() == dest_address;
+    return extracted_dest_address == dest_address;
 }
 
 DestIPAddress::~DestIPAddress(){}

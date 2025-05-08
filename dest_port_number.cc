@@ -1,6 +1,7 @@
 #include "filter_element.h"
 #include "ns3/ipv4-address.h"
 #include "ns3/ipv4-header.h"
+#include "ns3/ppp-header.h"
 #include "ns3/tcp-header.h"
 #include "ns3/udp-header.h"
 #include "ns3/type-id.h" 
@@ -26,8 +27,13 @@ DestPortNumber::DestPortNumber(uint32_t dest_port) : my_dest_port(dest_port) {};
 bool DestPortNumber::match(Ptr<Packet> packet) const{
 
     Ptr<Packet> copy = packet->Copy(); //Create copy of entire packet
+
+    PppHeader pppHeader;
     
     Ipv4Header ipv4Header;
+
+    copy->RemoveHeader(pppHeader);
+
     copy->RemoveHeader(ipv4Header); //Remove the ip header from that copied packet
     
     UdpHeader udpHeader; //Or UDP?

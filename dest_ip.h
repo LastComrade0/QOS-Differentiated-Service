@@ -2,6 +2,7 @@
 #define DEST_IP_ADDRESS_H
 
 #include "filter_element.h"
+#include "ns3/ppp-header.h"
 #include "ns3/ipv4-address.h"
 #include "ns3/ipv4-header.h"
 #include "ns3/packet.h"

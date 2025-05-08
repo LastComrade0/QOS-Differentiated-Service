@@ -29,13 +29,19 @@ void DiffServ<Packet>::AddTrafficClass(TrafficClass* tc) {
 
 template <typename Packet>
 bool DiffServ<Packet>::Enqueue(Ptr<Packet> packet) {
+    cout << "[SPQ] Debugging Packet: Size = " << packet->GetSize() << endl;
+    packet->Print(cout);
+    cout << endl;
+
+
+    cout << "[Diffserv] Enqueueing..." << endl;
     int class_count = 0;
     
     for(TrafficClass *tc : q_class){
-        cout << "Iterating enqueue class " << class_count << endl;
+        cout << "Iterating enqueue class index " << class_count << endl;
 
         if(tc->match(packet)){
-            cout << "***Successfully enqueued, priority level: " << tc->getPriorityLvl() << endl;
+            cout << "[Diffserv]Successfully enqueued, priority level: " << tc->getPriorityLvl() << endl;
             tc->Enqueue(packet);
             return true;
         }
@@ -47,7 +53,7 @@ bool DiffServ<Packet>::Enqueue(Ptr<Packet> packet) {
     for(TrafficClass *tc2 : q_class){
         cout << "Iterating enqueue class for default: " << class_count << endl;
         if(tc2->isDefaultCheck()){
-            cout << "***Successfully enqueued default, priority level: " << tc2->getPriorityLvl() << endl;
+            cout << "[Diffserv]Successfully enqueued default, priority level: " << tc2->getPriorityLvl() << endl;
             tc2->EnqueueDefault(packet);
             return true;
         }
@@ -60,7 +66,7 @@ bool DiffServ<Packet>::Enqueue(Ptr<Packet> packet) {
 
 template <typename Packet>
 Ptr<Packet> DiffServ<Packet>::Dequeue() {
-
+    cout << "[Diffserv] Dequeue() called" << endl;
     return this->Schedule();
 }
 
@@ -86,23 +92,6 @@ Ptr<Packet> DiffServ<Packet>::Remove() {
     return nullptr;
 }
 
-template <typename Packet>
-bool DiffServ<Packet>::DoEnqueue(Ptr<Packet> packet){
-    cout << "[Diffserv] DoEnqueue() called" << endl;
-    uint32_t classId = this->Classify(packet);
-    if (classId < q_class.size()) {
-        return Enqueue(packet);
-    } else {
-        std::cerr << "Classification failed — no valid traffic class. Packet dropped." << std::endl;
-        return false;
-    }
-}
-
-template <typename Packet>
-Ptr<Packet> DiffServ<Packet>::DoDequeue(){
-    cout << "[Diffserv] DoDequeue() called" << endl;
-    return this->Schedule();
-}
 
 template <typename Packet>
 Ptr<Packet> DiffServ<Packet>::DoRemove(){

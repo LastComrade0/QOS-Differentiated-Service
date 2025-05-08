@@ -36,18 +36,19 @@ class DiffServ : public Queue<Packet>{
 
         virtual uint32_t Classify(Ptr<Packet> p) = 0;
 
+        virtual bool DoEnqueue(Ptr<Packet> p) = 0;
+            
+        virtual Ptr<Packet> DoDequeue() = 0;
+
 
     protected:
 
         vector<TrafficClass*> q_class;
 
-        bool DoEnqueue(Ptr<Packet> p);
-    
-        Ptr<Packet> DoDequeue();
-    
-        Ptr<Packet> DoRemove();
-    
         Ptr<const Packet> DoPeek() const;
+
+        Ptr<Packet> DoRemove();
+        
 
 };
 

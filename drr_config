@@ -1,7 +1,7 @@
 # Traffic Class 0: (Protocol 6(TCP), Port 80) OR Dest IP 8.8.8.8 "Priority 2"
 queueId: 0
 maxPackets: 20
-quantumSize: 500
+quantumSize: 300
 isDefault: false
 Filter: 
     DestPortNumber: 80
@@ -15,7 +15,7 @@ Filter:
 # Traffic Class 1: (Protocol 6(TCP), Port 10) OR Dest IP 10.0.0.1
 queueId: 1
 maxPackets: 50
-quantumSize: 600
+quantumSize: 200
 isDefault: false
 Filter:
     DestIPAddress: 10.0.0.1
@@ -29,7 +29,7 @@ Filter:
 # Traffic Class 2: Default, no filter
 queueId: 2
 maxPackets: 100
-quantumSize: 700
+quantumSize: 100
 isDefault: true
 ---
   

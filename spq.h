@@ -16,7 +16,7 @@
 #include "dest_ip.h"
 #include "dest_port_number.h"
 #include "protocol_number.h"
-#include "udp_application.h"
+//#include "udp_application.h"
 
 #include <vector>
 #include <map>
@@ -55,7 +55,11 @@ class SPQ : public DiffServ<Packet>{
 
         Ptr<Packet> testDequeue();
 
-    
+        bool DoEnqueue(Ptr<Packet> packet) override;
+
+        Ptr<Packet> DoDequeue() override;
+
+        
     
 };
 

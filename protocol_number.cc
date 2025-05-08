@@ -1,5 +1,7 @@
 #include "filter_element.h"
 #include "protocol_number.h"
+#include "ns3/ppp-header.h"
+#include "ns3/ipv4-header.h"
 #include "ns3/type-id.h" 
 #include "ns3/log.h"
 
@@ -19,9 +21,12 @@ TypeId ProtocolNumber::GetTypeId(void){
 ProtocolNumber::ProtocolNumber(uint32_t protocol_number) : my_protocol_number(protocol_number) {}
 
 bool ProtocolNumber::match(Ptr<Packet> packet) const{
+    Ptr<Packet> copy = packet->Copy();
+    PppHeader pppHeader;
     Ipv4Header ipv4Header;
 
-    packet->PeekHeader(ipv4Header);
+    copy->RemoveHeader(pppHeader);
+    copy->PeekHeader(ipv4Header);
 
     uint8_t extracted_protocol = ipv4Header.GetProtocol();
 

@@ -11,7 +11,7 @@
 #include "ns3/udp-header.h"
 
 #include "spq.h"
-#include "udp_application.h"
+//#include "udp_application.h"
 #include <map>
 #include <vector>
 #include <queue>
@@ -27,10 +27,31 @@ SPQ<Packet>::SPQ(){}
 template<typename Packet>
 SPQ<Packet>::~SPQ(){}
 
+template <typename Packet>
+bool SPQ<Packet>::DoEnqueue(Ptr<Packet> packet){
+    cout << "[SPQ] DoEnqueue() called" << endl;
+    uint32_t classId = this->Classify(packet);
+    cout << "Class id to enqueue: " << classId << endl;
+    if (classId < this->q_class.size()) {
+        return DiffServ<Packet>::Enqueue(packet);
+    } else {
+        std::cerr << "Classification failed — no valid traffic class. Packet dropped." << std::endl;
+        return false;
+    }
+}
+
+template <typename Packet>
+Ptr<Packet> SPQ<Packet>::DoDequeue(){
+    cout << "[SPQ] DoDequeue() called" << endl;
+    return DiffServ<Packet>::Dequeue();
+}
+
 template<typename Packet>
 Ptr<Packet> SPQ<Packet>::Schedule(){
+    cout << "[SPQ] Schedule() called" << endl;
     for(TrafficClass *tc : this->q_class){
         if(!tc->isEmpty()){
+            cout << "[SPQ] Dequeued from traffic class: " << tc->getPriorityLvl() << endl;
             return tc->Dequeue();
         }
     }
@@ -39,6 +60,7 @@ Ptr<Packet> SPQ<Packet>::Schedule(){
 
 template<typename Packet>
 uint32_t SPQ<Packet>::Classify(Ptr<Packet> packet){
+    cout << "[SPQ]Classifying Packet" << endl;
     const uint32_t INVALID_CLASS_ID = std::numeric_limits<uint32_t>::max();
     
     for(uint32_t traffic_id = 0; traffic_id < this->q_class.size(); traffic_id += 1){
@@ -369,59 +391,102 @@ int main(int argc, char* argv[]){
 
     nodes.Create(3);
 
-    PointToPointHelper p2p;
-    p2p.SetDeviceAttribute("DataRate", StringValue("4Mbps"));
-    p2p.SetChannelAttribute("Delay", StringValue("2ms"));
+    NodeContainer n0r = NodeContainer(nodes.Get(0), nodes.Get(1));
+    NodeContainer n1r = NodeContainer(nodes.Get(1), nodes.Get(2));
 
-    NetDeviceContainer devices1 = p2p.Install(nodes.Get(0), nodes.Get(1));
-    NetDeviceContainer devices2 = p2p.Install(nodes.Get(1), nodes.Get(2));
+    PointToPointHelper p2p_1, p2p_2;
+    p2p_1.SetDeviceAttribute("DataRate", StringValue("4Mbps"));
+    p2p_1.SetChannelAttribute("Delay", StringValue("2ms"));
 
-    InternetStackHelper stack;
-    stack.Install(nodes);
+    p2p_2.SetDeviceAttribute("DataRate", StringValue("1Mbps"));
+    p2p_2.SetChannelAttribute("Delay", StringValue("2ms"));
 
+    InternetStackHelper internet;
+    internet.Install(nodes);
+
+    NetDeviceContainer p2p_device1, p2p_device2;
+    p2p_device1 = p2p_1.Install(nodes.Get(0), nodes.Get(1));
+    p2p_device2 = p2p_2.Install(nodes.Get(1), nodes.Get(2));
+
+    // Assign IP addresses
     Ipv4AddressHelper address;
-    address.SetBase("10.1.1.0", "255.255.255.0");
-    Ipv4InterfaceContainer interfaces1 = address.Assign(devices1);
+    address.SetBase("10.1.1.0", "255.255.255.255");
+    Ipv4InterfaceContainer interfaces1 = address.Assign(p2p_device1);
 
-    address.SetBase("10.1.2.0", "255.255.255.0");
-    Ipv4InterfaceContainer interfaces2 = address.Assign(devices2);
+    address.SetBase("10.1.2.2", "255.255.255.255");
+    Ipv4InterfaceContainer interfaces2 = address.Assign(p2p_device2);
 
-    // Attach SPQ to Router Node (Node 1)
-    Ptr<PointToPointNetDevice> routerDevice = devices2.Get(0)->GetObject<PointToPointNetDevice>();
-    if (routerDevice == nullptr) {
-        std::cerr << "Failed to get PointToPointNetDevice on router." << std::endl;
+    //Populate routing tables
+    Ipv4GlobalRoutingHelper::PopulateRoutingTables();
+
+    //Set Custom SPQ to router
+    Ptr<PointToPointNetDevice> router_device = p2p_device2.Get(0)->GetObject<PointToPointNetDevice>();
+    if(router_device){
+        router_device->SetQueue(spq);
+    }
+    else{
+        cerr << "Failed to apply custom SPQ to router." << endl;
         return 1;
     }
 
-    routerDevice->SetQueue(spq);
+    //Set UDP Server on node 2
+    uint16_t port1 = 80, port2 = 70;
+    UdpEchoServerHelper server1(port1);
+    ApplicationContainer apps1 = server1.Install(nodes.Get(2));
+    apps1.Start(Seconds(1.0));
+    apps1.Stop(Seconds(12.0));
 
-    // Set up UDP sender applications
-    Ptr<Socket> udpSocketA = Socket::CreateSocket(nodes.Get(0), UdpSocketFactory::GetTypeId());
-    Ptr<Socket> udpSocketB = Socket::CreateSocket(nodes.Get(0), UdpSocketFactory::GetTypeId());
+    UdpEchoServerHelper server2(port2);
+    ApplicationContainer apps2 = server2.Install(nodes.Get(2));
+    apps2.Start(Seconds(1.0));
+    apps2.Stop(Seconds(12.0));
 
-    Address destAddress = InetSocketAddress(interfaces2.GetAddress(1), 8080);
+    //High Priority App
+    UdpEchoClientHelper client1(interfaces2.GetAddress(1), port1);
+    client1.SetAttribute("MaxPackets", UintegerValue(10000));
+    client1.SetAttribute("Interval", TimeValue(Seconds(0.001)));
+    client1.SetAttribute("PacketSize", UintegerValue(512));
+    
+    ApplicationContainer clientApps1 = client1.Install(nodes.Get(0));
+    clientApps1.Start(Seconds(4.0));
+    clientApps1.Stop(Seconds(10.0));
 
-    // Application B (Low Priority) starts first
-    Ptr<UdpApplication> appB = CreateObject<UdpApplication>();
-    NS_OBJECT_ENSURE_REGISTERED(UdpApplication);
-    appB->Setup(udpSocketB, destAddress, 1000, 100, MilliSeconds(10));
-    nodes.Get(0)->AddApplication(appB);
-    appB->SetStartTime(Seconds(1.0));
-    appB->SetStopTime(Seconds(10.0));
+    //Low Priority App
+    UdpEchoClientHelper client2(interfaces2.GetAddress(1), port2);
+    client2.SetAttribute("MaxPackets", UintegerValue(10000));
+    client2.SetAttribute("Interval", TimeValue(Seconds(0.001)));
+    client2.SetAttribute("PacketSize", UintegerValue(512));
+    
+    ApplicationContainer clientApps2 = client2.Install(nodes.Get(0));
+    clientApps2.Start(Seconds(1.0));
+    clientApps2.Stop(Seconds(10.0));
+    
 
-    // Application A (High Priority) starts later
-    Ptr<UdpApplication> appA = CreateObject<UdpApplication>();
-    appA->Setup(udpSocketA, destAddress, 1000, 100, MilliSeconds(10));
-    nodes.Get(0)->AddApplication(appA);
-    appA->SetStartTime(Seconds(3.0));
-    appA->SetStopTime(Seconds(10.0));
 
-    // Receiver (Server)
-    Ptr<Socket> sink = Socket::CreateSocket(nodes.Get(2), UdpSocketFactory::GetTypeId());
-    sink->Bind(InetSocketAddress(Ipv4Address::GetAny(), 8080));
-    sink->Listen();
-    sink->SetRecvCallback(MakeCallback(&ReceivePacketCallback));
+    // Enable PCAP capture
+    // p2p_1.EnablePcap("router-incoming", p2p_device1.Get(1), true);  // Promiscuous mode
+    // p2p_2.EnablePcap("router-outgoing", p2p_device2.Get(0), true);
+    // p2p_1.EnablePcapAll("lab3-router-incoming");
+    // p2p_2.EnablePcapAll("lab3-router-outgoing");
+    // Capture incoming packets on the router (incoming from Node 0 to Node 1)
+    // p2p_1.EnablePcap("router-low-priority-incoming", p2p_device2.Get(1), false); 
 
+    // // Capture outgoing packets on the router (outgoing from Node 1 to Node 2)
+    // p2p_2.EnablePcap("router-low-priority-outgoing", p2p_device2.Get(0), false);
+
+    // // Capture incoming packets on the router (incoming from Node 0 to Node 1)
+    // p2p_1.EnablePcap("router-high-priority-incoming", p2p_device1.Get(1), false); 
+
+    // // Capture outgoing packets on the router (outgoing from Node 1 to Node 2)
+    // p2p_2.EnablePcap("router-high-priority-outgoing", p2p_device1.Get(0), false);
+    p2p_1.EnablePcapAll("udp");
+    p2p_2.EnablePcapAll("udp");
+    
+    
+
+    cout << "Running Simulation" << endl;
+    // Run simulation
+    //Simulator::Stop(Seconds(12.0));
     Simulator::Run();
     Simulator::Destroy();
 
@@ -430,3 +495,220 @@ int main(int argc, char* argv[]){
 
 
 }
+
+// NetDeviceContainer devices1 = p2p.Install(nodes.Get(0), nodes.Get(1));
+//     NetDeviceContainer devices2 = p2p.Install(nodes.Get(1), nodes.Get(2));
+
+//     InternetStackHelper stack;
+//     stack.Install(nodes);
+
+//     Ipv4AddressHelper address;
+//     address.SetBase("8.8.8.8", "255.255.255.255");
+//     Ipv4InterfaceContainer interfaces1 = address.Assign(devices1);
+
+//     address.SetBase("10.1.2.0", "255.255.255.255");
+//     Ipv4InterfaceContainer interfaces2 = address.Assign(devices2);
+
+//     // Attach SPQ to Router Node (Node 1)
+//     Ptr<PointToPointNetDevice> routerDevice = devices1.Get(1)->GetObject<PointToPointNetDevice>();
+//     if (routerDevice == nullptr) {
+//         std::cerr << "Failed to get PointToPointNetDevice on router." << std::endl;
+//         return 1;
+//     }
+
+//     Ptr<Queue<Packet>> queue = spq;
+//     routerDevice->SetQueue(queue);
+
+//     // Set up UDP sender applications
+//     Ptr<Socket> udpSocketA = Socket::CreateSocket(nodes.Get(0), UdpSocketFactory::GetTypeId());
+//     Ptr<Socket> udpSocketB = Socket::CreateSocket(nodes.Get(0), UdpSocketFactory::GetTypeId());
+
+//     Address destAddress = InetSocketAddress(interfaces2.GetAddress(1), 8080);
+
+//     // Application B (Low Priority) starts first
+//     Ptr<UdpApplication> appB = CreateObject<UdpApplication>();
+//     NS_OBJECT_ENSURE_REGISTERED(UdpApplication);
+//     appB->Setup(udpSocketB, destAddress, 1000, 100, MilliSeconds(10));
+//     nodes.Get(0)->AddApplication(appB);
+//     appB->SetStartTime(Seconds(1.0));
+//     appB->SetStopTime(Seconds(10.0));
+
+//     // Application A (High Priority) starts later
+//     Ptr<UdpApplication> appA = CreateObject<UdpApplication>();
+//     appA->Setup(udpSocketA, destAddress, 1000, 100, MilliSeconds(10));
+//     nodes.Get(0)->AddApplication(appA);
+//     appA->SetStartTime(Seconds(3.0));
+//     appA->SetStopTime(Seconds(10.0));
+
+//     // Receiver (Server)
+//     Ptr<Socket> sink = Socket::CreateSocket(nodes.Get(2), UdpSocketFactory::GetTypeId());
+//     sink->Bind(InetSocketAddress(Ipv4Address::GetAny(), 8080));
+//     sink->Listen();
+//     sink->SetRecvCallback(MakeCallback(&ReceivePacketCallback));
+
+//     PointToPointHelper pointToPoint0;
+//     pointToPoint0.EnablePcapAll("udp");
+
+//     cout << "Running NS3 Topology..." << endl;
+//     Simulator::Run();
+//     Simulator::Destroy();
+
+
+// //Setup UDP Application for high priority
+    // Ptr<Socket> udp_socket_1 = Socket::CreateSocket(nodes.Get(0), UdpSocketFactory::GetTypeId());
+    // Address dest1 = InetSocketAddress(interfaces2.GetAddress(1), 80);
+    // Ptr<UdpApplication> app1 = CreateObject<UdpApplication>();
+    // app1->Setup(udp_socket_1, dest1, 512, 10000, MilliSeconds(1));
+    // nodes.Get(0)->AddApplication(app1);
+    // app1->SetStartTime(Seconds(4.0));
+    // app1->SetStopTime(Seconds(10.0));
+
+    // //Set UDP Application for low priority
+    // Ptr<Socket> udp_socket_2 = Socket::CreateSocket(nodes.Get(0), UdpSocketFactory::GetTypeId());
+    // Address dest2 = InetSocketAddress(interfaces2.GetAddress(1), 70);
+    // Ptr<UdpApplication> app2 = CreateObject<UdpApplication>();
+    // app2->Setup(udp_socket_2, dest2, 512, 10000, MilliSeconds(1));
+    // nodes.Get(0)->AddApplication(app2);
+    // app2->SetStartTime(Seconds(1.0));
+    // app2->SetStopTime(Seconds(10.0));
+
+        // Ptr<Packet> testPacket = Create<Packet>(500); // 500 bytes test packet
+    // bool enqueueResult = spq->DoEnqueue(testPacket);
+    // cout << enqueueResult << endl;
+    //NS_LOG_INFO("Test Packet Enqueue Result: " << (enqueueResult ? "Success" : "Failure"));
+
+        //Create Packet 1
+    // --- Construct packet: UDP port 80 ---
+    // Ptr<Packet> pkt = Create<Packet>(100);
+    // Ipv4Header ipHeader;
+    // ipHeader.SetProtocol(17); // UDP
+    // ipHeader.SetDestination("0.0.0.0");
+ 
+    // UdpHeader udpHeader;
+    // udpHeader.SetDestinationPort(80);
+ 
+    // pkt->AddHeader(udpHeader);
+    // pkt->AddHeader(ipHeader);
+
+    // //Create packet 2 
+    // Ptr<Packet> pkt2 = Create<Packet>(100);
+    // Ipv4Header ipHeader2;
+    // ipHeader2.SetProtocol(17); // UDP
+    // ipHeader2.SetDestination("0.0.0.1");
+ 
+    // UdpHeader udpHeader2;
+    // udpHeader2.SetDestinationPort(70);
+ 
+    // pkt2->AddHeader(udpHeader2);
+    // pkt2->AddHeader(ipHeader2);
+
+    // //Create packet 3
+    // Ptr<Packet> pkt3 = Create<Packet>(100);
+    // Ipv4Header ipHeader3;
+    // ipHeader3.SetProtocol(17); // UDP
+    // ipHeader3.SetDestination("0.0.0.2");
+ 
+    // UdpHeader udpHeader3;
+    // udpHeader3.SetDestinationPort(80);
+ 
+    // pkt3->AddHeader(udpHeader3);
+    // pkt3->AddHeader(ipHeader3);
+
+
+    // //Create packet 4
+    // Ptr<Packet> pkt4 = Create<Packet>(100);
+    // Ipv4Header ipHeader4;
+    // ipHeader4.SetProtocol(17); // UDP
+    // ipHeader4.SetDestination("10.0.0.1");
+ 
+    // UdpHeader udpHeader4;
+    // udpHeader4.SetDestinationPort(80);
+ 
+    // pkt4->AddHeader(udpHeader4);
+    // pkt4->AddHeader(ipHeader4);
+
+    // //Classify packet 1
+    // uint32_t classId = spq->Classify(pkt);
+    // cout << "Classified into class: " << classId << endl;
+
+    // if (classId >= spq->getTrafficVector().size()) {
+    //     cerr << "Classification failed!" << endl;
+    //     return 1;
+    // }
+    
+    // cout << " - * - * - * - * - * - * - * - * - * - * - * - * - * - *" << endl;
+
+    // // --- Enqueue packet 1 into correct class ---
+    // bool success = spq->DoEnqueue(pkt);
+    // cout << "Enqueue success: " << (success ? "true" : "false") << endl;
+
+    // cout << "Current size for class " << classId << ": " << spq->getTrafficVector()[classId]->getQueueSize() << endl;
+
+    // //Classify packet 2
+    // uint32_t classId2 = spq->Classify(pkt2);
+    // cout << "Classified into class: " << classId2 << endl;
+
+    // if (classId2 >= spq->getTrafficVector().size()) {
+    //     cerr << "Classification failed!" << endl;
+    //     return 1;
+    // }
+
+    // // --- Enqueue packet 2 into correct class ---
+    // bool success2 = spq->DoEnqueue(pkt2); //Enqueue direct call or under Classify()?
+    // cout << "Enqueue success: " << (success2 ? "true" : "false") << endl;
+
+    // cout << "Current size for class " << classId2 << ": " << spq->getTrafficVector()[classId2]->getQueueSize() << endl;
+
+    // //Classify packet 3
+    // uint32_t classId3 = spq->Classify(pkt3);
+    // cout << "Classified into class: " << classId3 << endl;
+
+    // if (classId3 >= spq->getTrafficVector().size()) {
+    //     cerr << "Classification failed!" << endl;
+    //     return 1;
+    // }
+
+    // // --- Enqueue packet 3 into correct class ---
+    // bool success3 = spq->DoEnqueue(pkt3); //Enqueue direct call or under Classify()?
+    // cout << "Enqueue success: " << (success3 ? "true" : "false") << endl;
+
+    // cout << "Current size for class " << classId3 << ": " << spq->getTrafficVector()[classId3]->getQueueSize() << endl;
+
+    // //Classify packet 4
+    // uint32_t classId4 = spq->Classify(pkt4);
+    // cout << "Classified into class: " << classId4 << endl;
+
+    // if (classId4 >= spq->getTrafficVector().size()) {
+    //     cerr << "Classification failed!" << endl;
+    //     return 1;
+    // }
+
+    // // --- Enqueue packet 4 into correct class ---
+    // bool success4 = spq->DoEnqueue(pkt4); //Enqueue direct call or under Classify()?
+    // cout << "Enqueue success: " << (success4 ? "true" : "false") << endl;
+
+    // cout << "Current size for class " << classId4 << ": " << spq->getTrafficVector()[classId3]->getQueueSize() << endl;
+    
+
+    // //Test Schedule
+    // for(int pkt_count = 4; pkt_count > 0; pkt_count -= 1){
+    //     cout << "-------------------" << endl;
+    //     Ptr<Packet> scheduledPkt = spq->DoDequeue();
+
+    //     Ipv4Header ipHeaderExtract;
+    //     UdpHeader udpHeaderExtract;
+
+    
+
+    //     if (scheduledPkt) {
+    //         scheduledPkt->RemoveHeader(ipHeaderExtract);
+    //         scheduledPkt->RemoveHeader(udpHeaderExtract);
+
+    //         cout << "Scheduled a packet successfully!" << endl;
+    //         cout << "Destination IP: " << ipHeaderExtract.GetDestination() << endl;
+    //         cout << "Protocol: " << (uint16_t)ipHeaderExtract.GetProtocol() << endl;
+    //         cout << "Destination port: " << udpHeaderExtract.GetDestinationPort() << endl;
+    //     } else {
+    //         cout << "Schedule returned nullptr — all queues empty." << endl;
+    //     }
+    // }
