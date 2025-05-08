@@ -20,14 +20,21 @@ TypeId SrcIPAddress::GetTypeId(void){
 SrcIPAddress::SrcIPAddress(Ipv4Address address) : src_address(address){}
 
 bool SrcIPAddress::match(Ptr<Packet> packet) const {
-    Ipv4Header ipv4Header;
-    
-    packet->PeekHeader(ipv4Header);
 
-    cout << "Packet src ip: " << ipv4Header.GetSource() << endl;
+    Ptr<Packet> copy = packet->Copy();
+
+    PppHeader pppHeader;
+    Ipv4Header ipv4Header;
+
+    copy->RemoveHeader(pppHeader);
+    copy->PeekHeader(ipv4Header); 
+
+    Ipv4Address extracted_src_address = ipv4Header.GetDestination();
+
+    cout << "Packet src ip: " << extracted_src_address << endl;
     cout << "Criteria src ip: " << src_address << endl;
 
-    return ipv4Header.GetSource() == src_address;
+    return extracted_src_address == src_address;
 }
 
 SrcIPAddress::~SrcIPAddress(){}

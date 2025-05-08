@@ -2,7 +2,9 @@
 #define SRC_IP_ADDRESS_H
 
 #include "filter_element.h"
+#include "ns3/ppp-header.h"
 #include "ns3/ipv4-address.h"
+#include "ns3/ipv4-header.h"
 #include "ns3/packet.h"
 #include "ns3/type-id.h" 
 #include "ns3/log.h"

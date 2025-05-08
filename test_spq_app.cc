@@ -51,7 +51,7 @@ Ptr<Packet> SPQ<Packet>::Schedule(){
     cout << "[SPQ] Schedule() called" << endl;
     for(TrafficClass *tc : this->q_class){
         if(!tc->isEmpty()){
-            cout << "[SPQ] Dequeued from traffic class: " << tc->getPriorityLvl() << endl;
+            cout << "[SPQ] Dequeued from traffic class priority: " << tc->getPriorityLvl() << endl;
             return tc->Dequeue();
         }
     }
@@ -434,12 +434,12 @@ int main(int argc, char* argv[]){
     UdpEchoServerHelper server1(port1);
     ApplicationContainer apps1 = server1.Install(nodes.Get(2));
     apps1.Start(Seconds(1.0));
-    apps1.Stop(Seconds(12.0));
+    apps1.Stop(Seconds(40.0));
 
     UdpEchoServerHelper server2(port2);
     ApplicationContainer apps2 = server2.Install(nodes.Get(2));
     apps2.Start(Seconds(1.0));
-    apps2.Stop(Seconds(12.0));
+    apps2.Stop(Seconds(40.0));
 
     //High Priority App
     UdpEchoClientHelper client1(interfaces2.GetAddress(1), port1);
@@ -448,8 +448,8 @@ int main(int argc, char* argv[]){
     client1.SetAttribute("PacketSize", UintegerValue(512));
     
     ApplicationContainer clientApps1 = client1.Install(nodes.Get(0));
-    clientApps1.Start(Seconds(4.0));
-    clientApps1.Stop(Seconds(10.0));
+    clientApps1.Start(Seconds(12.0));
+    clientApps1.Stop(Seconds(40.0));
 
     //Low Priority App
     UdpEchoClientHelper client2(interfaces2.GetAddress(1), port2);
@@ -459,7 +459,7 @@ int main(int argc, char* argv[]){
     
     ApplicationContainer clientApps2 = client2.Install(nodes.Get(0));
     clientApps2.Start(Seconds(1.0));
-    clientApps2.Stop(Seconds(10.0));
+    clientApps2.Stop(Seconds(40.0));
     
 
 

@@ -1,5 +1,6 @@
 #include "filter_element.h"
 #include "ns3/ipv4-address.h"
+#include "ns3/ppp-header.h"
 #include "ns3/log.h"
 #include "ns3/type-id.h" 
 #include "dest_mask.h"
@@ -21,16 +22,20 @@ TypeId DestMask::GetTypeId(void){
 DestMask::DestMask(Ipv4Address address, Ipv4Mask mask) : dest_mask(mask), dest_address(address) {}
 
 bool DestMask::match(Ptr<Packet> packet) const{
+    Ptr<Packet> copy = packet->Copy();
+    PppHeader pppHeader;
     Ipv4Header ipv4Header;
-            
-    packet->PeekHeader(ipv4Header);
+
+    copy->RemoveHeader(pppHeader);
+    copy->PeekHeader(ipv4Header);
 
     Ipv4Address extracted_dest = ipv4Header.GetDestination();
 
     cout << "Packet combine mask: " << extracted_dest.CombineMask(dest_mask) << endl;
-    cout << "Criteria combine mask: " << dest_address.CombineMask(dest_mask) << endl;
+    cout << "Criteria combine mask: " << dest_address << endl;
+    //cout << "Criteria combine mask: " << dest_address.CombineMask(dest_mask) << endl;
 
-    return extracted_dest.CombineMask(dest_mask) == dest_address.CombineMask(dest_mask);
+    return extracted_dest.CombineMask(dest_mask) == dest_address;
 
 }
 

@@ -25,8 +25,13 @@ SrcPortNumber::SrcPortNumber(uint32_t src_port) : my_src_port(src_port) {};
 bool SrcPortNumber::match(Ptr<Packet> packet) const{
 
     Ptr<Packet> copy = packet->Copy(); //Create copy of entire packet
+
+    PppHeader pppHeader;
     
     Ipv4Header ipv4Header;
+
+    copy->RemoveHeader(pppHeader);
+
     copy->RemoveHeader(ipv4Header); //Remove the ip header from that copied packet
     
     UdpHeader udpHeader; //Or UDP?

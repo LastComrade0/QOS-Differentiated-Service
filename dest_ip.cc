@@ -33,8 +33,8 @@ bool DestIPAddress::match(Ptr<Packet> packet) const{
     
     Ipv4Address extracted_dest_address = ipv4Header.GetDestination();
 
-    cout << "Packet destination address: " << extracted_dest_address << endl;
-    cout << "Criteria destination address: " << dest_address << endl;
+    cout << "Packet destination ip: " << extracted_dest_address << endl;
+    cout << "Criteria destination ip: " << dest_address << endl;
     
     return extracted_dest_address == dest_address;
 }
