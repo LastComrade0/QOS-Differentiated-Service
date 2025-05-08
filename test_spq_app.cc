@@ -448,7 +448,7 @@ int main(int argc, char* argv[]){
     client1.SetAttribute("PacketSize", UintegerValue(512));
     
     ApplicationContainer clientApps1 = client1.Install(nodes.Get(0));
-    clientApps1.Start(Seconds(12.0));
+    clientApps1.Start(Seconds(4.0));
     clientApps1.Stop(Seconds(120.0));
 
     //Low Priority App
@@ -470,17 +470,11 @@ int main(int argc, char* argv[]){
     // p2p_2.EnablePcapAll("lab3-router-outgoing");
 
     // Capture incoming packets on the router (incoming from Node 0 to Node 1)
-    p2p_1.EnablePcap("router-incoming", p2p_device1.Get(1), false); 
+    p2p_1.EnablePcap("router-incoming", p2p_device1.Get(0), false); 
 
     // Capture outgoing packets on the router (incoming from Node 0 to Node 1)
     p2p_1.EnablePcap("router-outgoing", p2p_device2.Get(0), false); 
 
-
-
-    //p2p_1.EnablePcapAll("udp");
-    //p2p_2.EnablePcapAll("udp");
-    
-    
 
     cout << "Running Simulation" << endl;
     // Run simulation
