@@ -428,18 +428,18 @@ int main(int argc, char* argv[]){
         cerr << "Failed to apply custom SPQ to router." << endl;
         return 1;
     }
-
+    
     //Set UDP Server on node 2
     uint16_t port1 = 80, port2 = 70;
     UdpEchoServerHelper server1(port1);
     ApplicationContainer apps1 = server1.Install(nodes.Get(2));
     apps1.Start(Seconds(1.0));
-    apps1.Stop(Seconds(40.0));
+    apps1.Stop(Seconds(120.0));
 
     UdpEchoServerHelper server2(port2);
     ApplicationContainer apps2 = server2.Install(nodes.Get(2));
     apps2.Start(Seconds(1.0));
-    apps2.Stop(Seconds(40.0));
+    apps2.Stop(Seconds(120.0));
 
     //High Priority App
     UdpEchoClientHelper client1(interfaces2.GetAddress(1), port1);
@@ -449,7 +449,7 @@ int main(int argc, char* argv[]){
     
     ApplicationContainer clientApps1 = client1.Install(nodes.Get(0));
     clientApps1.Start(Seconds(12.0));
-    clientApps1.Stop(Seconds(40.0));
+    clientApps1.Stop(Seconds(120.0));
 
     //Low Priority App
     UdpEchoClientHelper client2(interfaces2.GetAddress(1), port2);
@@ -459,7 +459,7 @@ int main(int argc, char* argv[]){
     
     ApplicationContainer clientApps2 = client2.Install(nodes.Get(0));
     clientApps2.Start(Seconds(1.0));
-    clientApps2.Stop(Seconds(40.0));
+    clientApps2.Stop(Seconds(120.0));
     
 
 
@@ -473,7 +473,7 @@ int main(int argc, char* argv[]){
     p2p_1.EnablePcap("router-incoming", p2p_device1.Get(1), false); 
 
     // Capture outgoing packets on the router (incoming from Node 0 to Node 1)
-    p2p_1.EnablePcap("router-outgoing", p2p_device2.Get(1), false); 
+    p2p_1.EnablePcap("router-outgoing", p2p_device2.Get(0), false); 
 
 
 
