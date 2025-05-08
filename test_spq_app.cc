@@ -470,10 +470,10 @@ int main(int argc, char* argv[]){
     // p2p_2.EnablePcapAll("lab3-router-outgoing");
 
     // Capture incoming packets on the router (incoming from Node 0 to Node 1)
-    p2p_1.EnablePcap("router-incoming", p2p_device1.Get(0), false); 
+    p2p_1.EnablePcap("spq-router-incoming", p2p_device1.Get(0), false); 
 
     // Capture outgoing packets on the router (incoming from Node 0 to Node 1)
-    p2p_1.EnablePcap("router-outgoing", p2p_device2.Get(0), false); 
+    p2p_1.EnablePcap("spq-router-outgoing", p2p_device2.Get(0), false); 
 
 
     cout << "Running Simulation" << endl;
