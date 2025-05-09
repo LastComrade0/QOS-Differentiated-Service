@@ -77,6 +77,8 @@ class TrafficClass{
         uint32_t getQuantumSize();
 
         uint32_t getDeficitCounter();
+
+        queue<Ptr<Packet>> getMQueue();
         
 
     private:

@@ -55,8 +55,15 @@ class DRR : public DiffServ<Packet>{
 
         Ptr<Packet> DoDequeue() override;
 
+        queue<Ptr<Packet>>* getLocalRoundQueue();
+
     private:
-        uint32_t current_robin;
+
+        vector<uint32_t> active_traffic_vector;
+
+        queue<Ptr<Packet>> local_round_queue;
+
+        uint32_t current_robin = 0;
     
 };
 

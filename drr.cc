@@ -19,7 +19,7 @@ using namespace std;
 
 template<typename Packet>
 DRR<Packet>::DRR(){
-    current_robin = -1;
+    current_robin = 0;
 }
 
 template<typename Packet>
@@ -45,71 +45,61 @@ Ptr<Packet> DRR<Packet>::DoDequeue(){
 }
 
 template<typename Packet>
-Ptr<Packet> DRR<Packet>::Schedule(){
-    cout << "[DRR] Schedule called()" << endl;
+Ptr<Packet> DRR<Packet>::Schedule() {
     uint32_t class_count = this->q_class.size();
     cout << "Class count: " << class_count << endl;
-
-    // Ensure current_robin is valid
-    if (current_robin < 0 || current_robin >= class_count) {
-        current_robin = 0;
-    }
-
-    // Round-robin scheduling for all classes
-    for (uint32_t i = 0; i < class_count; ++i) {
-        uint32_t index = (current_robin + i) % class_count;
-        TrafficClass *tc = this->q_class[index];
-        cout << "[Schedule] Checking class " << index << ", queue size: " << tc->getQueueSize() << endl;
-
-        if (!tc->isEmpty()) {
-            // Add quantum to deficit counter
-            tc->setDeficitCounter(tc->getDeficitCounter() + tc->getQuantumSize());
-            cout << "[Schedule] Updated deficitCounter: " << tc->getDeficitCounter() << ", quantum: " << tc->getQuantumSize() << endl;
-
-            while (!tc->isEmpty()) {
-                Ptr<Packet> packet = tc->peek();
-                if (!packet) {
-                    cout << "[Schedule] NULL packet from peek(), breaking inner loop" << endl;
-                    break;
-                }
-
-                uint32_t size = packet->GetSize();
-                cout << "[Schedule] Packet size: " << size << ", deficit: " << tc->getDeficitCounter() << endl;
-
-                // Check if deficit is enough to send the packet
-                if (size <= tc->getDeficitCounter()) {
-                    tc->setDeficitCounter(tc->getDeficitCounter() - size);
-                    cout << "[Schedule] Sending packet..." << endl;
-                    Ptr<Packet> dequeuedPacket = tc->Dequeue();
-                    //current_robin = (index + 1) % class_count;
-                    if (dequeuedPacket) {
-                        return dequeuedPacket;
-                    }
-                    else{
-                        cout << "[Schedule] Dequeued packet was NULL." << endl;
-                    }
-                    //return tc->Dequeue();
-                } else {
-                    cout << "[Schedule] Deficit too small, skipping..." << endl;
-                    break;
-                }
+    
+    if(getLocalRoundQueue()->empty()){
+        for(size_t i = 0; i < this->q_class.size(); ++i){
+            uint32_t class_index =  i;
+            cout << "[Schedule]Current Class Index: " << class_index << endl;
+            TrafficClass *current_class = this->q_class[class_index];
+    
+            // If the queue is empty, just skip this class
+            if (current_class->getMQueue().empty()) {
+                continue;
             }
-
+    
+            //Quantum + Deficit Counter
+            current_class->setDeficitCounter(current_class->getDeficitCounter() + current_class->getQuantumSize());
             
-
-            if(tc->isEmpty()){
-                current_robin = index;
-                cout << "[Schedule] Class " << index << " has remaining packets, keeping it for next round." << endl;
-                return nullptr;
+    
+            while(!current_class->getMQueue().empty() && (current_class->getDeficitCounter() > 0)){
+                Ptr<Packet> current_packet = current_class->getMQueue().front();
+                uint32_t current_packet_size = current_packet->GetSize();
+                cout << "Current packet size" << current_packet_size << endl;
+    
+                if(current_packet_size <= current_class->getDeficitCounter()){
+                    current_class->Dequeue();
+                    current_class->setDeficitCounter(current_class->getDeficitCounter() - current_packet_size);
+                    local_round_queue.push(current_packet);
+                }
+                else{
+                    break;
+                }
+    
+                
             }
-            else{
-                tc->setDeficitCounter(0);
+    
+            if (current_class->getMQueue().empty()) {
+                current_class->setDeficitCounter(0);
             }
+            
         }
+
+        Ptr<Packet> popped_from_local_round = local_round_queue.front();
+        local_round_queue.pop();
+        return popped_from_local_round;
+
+    }
+    // If the local round queue has packets, return the first one
+    if (!getLocalRoundQueue()->empty()) {
+        Ptr<Packet> scheduledPacket = local_round_queue.front();
+        local_round_queue.pop();
+        return scheduledPacket;
     }
 
-    // If no packets were scheduled, round-robin continues
-    current_robin = (current_robin + 1) % class_count;
+    cout << "No packets available to schedule." << endl;
     return nullptr;
 }
 
@@ -136,9 +126,15 @@ uint32_t DRR<Packet>::Classify(Ptr<Packet> packet){
     return INVALID_CLASS_ID;
 }
 
+template<typename Packet>
+queue<Ptr<Packet>>* DRR<Packet>::getLocalRoundQueue(){
+    return &local_round_queue;
+}
+
 
 template<typename Packet>
 void DRR<Packet>::CreateTrafficClassesVector(vector<TrafficClass*> set_traffic_vector){
+    active_traffic_vector = {0, 1, 2}; //Can improve as dynamic
     this->q_class = set_traffic_vector;
 }
 

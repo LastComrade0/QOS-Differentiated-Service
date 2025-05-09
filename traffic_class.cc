@@ -189,5 +189,9 @@ uint32_t TrafficClass::getDeficitCounter(){
     return deficit_counter;
 }
 
+queue<Ptr<Packet>> TrafficClass::getMQueue(){
+    return m_queue;
+}
+
 
 

@@ -36,8 +36,8 @@ Ptr<Packet> DRR<Packet>::Schedule(){
     }
 
     // Round-robin scheduling for all classes
-    for (uint32_t i = 0; i < class_count; ++i) {
-        uint32_t index = (current_robin + i) % class_count;
+    for (uint32_t round = 0; round < class_count; ++round) {
+        uint32_t index = (current_robin + round) % class_count;
         TrafficClass *tc = this->q_class[index];
         cout << "[Schedule] Checking class " << index << ", queue size: " << tc->getQueueSize() << endl;
 
@@ -45,6 +45,13 @@ Ptr<Packet> DRR<Packet>::Schedule(){
             // Add quantum to deficit counter
             tc->setDeficitCounter(tc->getDeficitCounter() + tc->getQuantumSize());
             cout << "[Schedule] Updated deficitCounter: " << tc->getDeficitCounter() << ", quantum: " << tc->getQuantumSize() << endl;
+
+            // if (tc->getDeficitCounter() == 0) {
+            //     tc->setDeficitCounter(tc->getQuantumSize());
+            //     cout << "[Schedule] Initial deficit set to quantum: " << tc->getQuantumSize() << endl;
+            // } else {
+            //     cout << "[Schedule] Current deficit: " << tc->getDeficitCounter() << endl;
+            // }
 
             while (!tc->isEmpty()) {
                 Ptr<Packet> packet = tc->peek();
@@ -59,19 +66,32 @@ Ptr<Packet> DRR<Packet>::Schedule(){
                 // Check if deficit is enough to send the packet
                 if (size <= tc->getDeficitCounter()) {
                     tc->setDeficitCounter(tc->getDeficitCounter() - size);
-                    cout << "[Schedule] Sending packet..." << endl;
-                    current_robin = (index + 1) % class_count;
-                    return tc->Dequeue();
+                    cout << "[Schedule] Sending packet from class " << index << "..." << endl;
+                    Ptr<Packet> dequeuedPacket = tc->Dequeue();
+                    if (dequeuedPacket) {
+                        //current_robin = index;  // Stay on this class for the next round
+                        return dequeuedPacket;
+                    }
+                    // current_robin = (index + 1) % class_count;
+                    // return tc->Dequeue();
                 } else {
-                    cout << "[Schedule] Deficit too small, skipping..." << endl;
+                    cout << "[Schedule] Deficit too small for class " << index << ", skipping..." << endl;
                     break;
                 }
+                
+            }
+
+            // If this class is empty, reset deficit
+            if (tc->isEmpty()) {
+                tc->setDeficitCounter(0);
+                cout << "[Schedule] Class " << index << " empty, resetting deficit." << endl;
             }
         }
     }
 
     // If no packets were scheduled, round-robin continues
     current_robin = (current_robin + 1) % class_count;
+    cout << "[Schedule] Advancing to next class: " << current_robin << endl;
     return nullptr;
 }
 
