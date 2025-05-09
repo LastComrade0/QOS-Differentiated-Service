@@ -33,6 +33,8 @@ bool DiffServ<Packet>::Enqueue(Ptr<Packet> packet) {
     packet->Print(cout);
     cout << endl;
 
+    uint32_t classId = this->Classify(packet);
+    cout << "[Diffserv] Classified Class id to enqueue: " << classId << endl;
 
     cout << "[Diffserv] Enqueueing..." << endl;
     int class_count = 0;
@@ -43,6 +45,7 @@ bool DiffServ<Packet>::Enqueue(Ptr<Packet> packet) {
         if(tc->match(packet)){
             cout << "[Diffserv]Successfully enqueued, priority level: " << tc->getPriorityLvl() << endl;
             tc->Enqueue(packet);
+            cout << "[Diffserv]Quantum size: " << tc->getQuantumSize() << endl;
             return true;
         }
         class_count += 1;
@@ -55,6 +58,7 @@ bool DiffServ<Packet>::Enqueue(Ptr<Packet> packet) {
         if(tc2->isDefaultCheck()){
             cout << "[Diffserv]Successfully enqueued default, priority level: " << tc2->getPriorityLvl() << endl;
             tc2->EnqueueDefault(packet);
+            cout << "[Diffserv]Default Quantum size: " << tc2->getQuantumSize() << endl;
             return true;
         }
         class_count += 1;

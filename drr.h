@@ -50,6 +50,10 @@ class DRR : public DiffServ<Packet>{
         bool testEnqueue(Ptr<Packet> packet);
 
         Ptr<Packet> testDequeue();
+        
+        bool DoEnqueue(Ptr<Packet> packet) override;
+
+        Ptr<Packet> DoDequeue() override;
 
     private:
         uint32_t current_robin;

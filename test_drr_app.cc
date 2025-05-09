@@ -25,8 +25,28 @@ DRR<Packet>::DRR(){
 template<typename Packet>
 DRR<Packet>::~DRR(){}
 
+template <typename Packet>
+bool DRR<Packet>::DoEnqueue(Ptr<Packet> packet){
+    cout << "[DRR] DoEnqueue() called" << endl;
+    uint32_t classId = this->Classify(packet);
+    cout << "Class id to enqueue: " << classId << endl;
+    if (classId < this->q_class.size()) {
+        return DiffServ<Packet>::Enqueue(packet);
+    } else {
+        std::cerr << "Classification failed — no valid traffic class. Packet dropped." << std::endl;
+        return false;
+    }
+}
+
+template <typename Packet>
+Ptr<Packet> DRR<Packet>::DoDequeue(){
+    cout << "[DRR] DoDequeue() called" << endl;
+    return DiffServ<Packet>::Dequeue();
+}
+
 template<typename Packet>
 Ptr<Packet> DRR<Packet>::Schedule(){
+    cout << "[DRR] Schedule called()" << endl;
     uint32_t class_count = this->q_class.size();
     cout << "Class count: " << class_count << endl;
 
@@ -60,12 +80,30 @@ Ptr<Packet> DRR<Packet>::Schedule(){
                 if (size <= tc->getDeficitCounter()) {
                     tc->setDeficitCounter(tc->getDeficitCounter() - size);
                     cout << "[Schedule] Sending packet..." << endl;
-                    current_robin = (index + 1) % class_count;
-                    return tc->Dequeue();
+                    Ptr<Packet> dequeuedPacket = tc->Dequeue();
+                    //current_robin = (index + 1) % class_count;
+                    if (dequeuedPacket) {
+                        return dequeuedPacket;
+                    }
+                    else{
+                        cout << "[Schedule] Dequeued packet was NULL." << endl;
+                    }
+                    //return tc->Dequeue();
                 } else {
                     cout << "[Schedule] Deficit too small, skipping..." << endl;
                     break;
                 }
+            }
+
+            
+
+            if(tc->isEmpty()){
+                current_robin = index;
+                cout << "[Schedule] Class " << index << " has remaining packets, keeping it for next round." << endl;
+                return nullptr;
+            }
+            else{
+                tc->setDeficitCounter(0);
             }
         }
     }
@@ -82,6 +120,7 @@ uint32_t DRR<Packet>::Classify(Ptr<Packet> packet){
     
     for(uint32_t traffic_id = 0; traffic_id < this->q_class.size(); traffic_id += 1){
         if(this->q_class[traffic_id]->match(packet)){
+            cout << "[Classify]Classifying at traffic class: " << traffic_id << endl;
             return traffic_id;
         }
     }
@@ -89,7 +128,7 @@ uint32_t DRR<Packet>::Classify(Ptr<Packet> packet){
     cout << "Classifying Default... " << endl;
     for(uint32_t traffic_default = 0; traffic_default < this->q_class.size(); traffic_default += 1){
         if(this->q_class[traffic_default]->isDefaultCheck()){
-            cout << "Classifying at default traffic calss with priority: " << traffic_default << endl;
+            cout << "[Classify]Classifying at default traffic calss with priority: " << traffic_default << endl;
             return traffic_default;
         }
     }
@@ -388,113 +427,113 @@ int main(int argc, char* argv[]){
 
     drr->CheckQueue();
 
-    //Create Packet 1
-    // --- Construct packet: UDP port 80 ---
-    Ptr<Packet> pkt = Create<Packet>(100);
-    Ipv4Header ipHeader;
-    ipHeader.SetProtocol(17); // UDP
-    ipHeader.SetDestination("0.0.0.0");
- 
-    UdpHeader udpHeader;
-    udpHeader.SetDestinationPort(80);
- 
-    pkt->AddHeader(udpHeader);
-    pkt->AddHeader(ipHeader);
+        // === ns-3 Topology Setup ===
+        NodeContainer nodes;
 
-    //Create packet 2 
-    Ptr<Packet> pkt2 = Create<Packet>(100);
-    Ipv4Header ipHeader2;
-    ipHeader2.SetProtocol(17); // UDP
-    ipHeader2.SetDestination("0.0.0.1");
- 
-    UdpHeader udpHeader2;
-    udpHeader2.SetDestinationPort(70);
- 
-    pkt2->AddHeader(udpHeader2);
-    pkt2->AddHeader(ipHeader2);
-
-    //Create packet3
-    Ptr<Packet> pkt3 = Create<Packet>(200);
-    Ipv4Header ipHeader3;
-    ipHeader3.SetProtocol(17); // UDP
-    ipHeader3.SetDestination("10.0.0.1");
-
-    UdpHeader udpHeader3;
-    udpHeader3.SetDestinationPort(70);
- 
-    pkt3->AddHeader(udpHeader3);
-    pkt3->AddHeader(ipHeader3);
-
-    //Classify packet 1
-    uint32_t classId = drr->Classify(pkt);
-    cout << "Classified into class: " << classId << endl;
-
-    if (classId >= drr->getTrafficVector().size()) {
-        cerr << "Classification failed!" << endl;
-        return 1;
-    }
+        nodes.Create(3);
     
-    cout << " - * - * - * - * - * - * - * - * - * - * - * - * - * - *" << endl;
-
-    // --- Enqueue packet 1 into correct class ---
-    bool success = drr->testEnqueue(pkt);
-    cout << "Enqueue success: " << (success ? "true" : "false") << endl;
-
-    cout << "Current size for class " << classId << ": " << drr->getTrafficVector()[classId]->getQueueSize() << endl;
-
-    //Classify packet 2
-    uint32_t classId2 = drr->Classify(pkt2);
-    cout << "Classified into class: " << classId2 << endl;
-
-    if (classId2 >= drr->getTrafficVector().size()) {
-        cerr << "Classification failed!" << endl;
-        return 1;
-    }
-
-    // --- Enqueue packet 2 into correct class ---
-    bool success2 = drr->testEnqueue(pkt2); //Enqueue direct call or under Classify()?
-    cout << "Enqueue success: " << (success2 ? "true" : "false") << endl;
-
-    cout << "Current size for class " << classId2 << ": " << drr->getTrafficVector()[classId2]->getQueueSize() << endl;
-
-    //Classify packet 3
-    uint32_t classId3 = drr->Classify(pkt3);
-    cout << "Classified into class: " << classId3 << endl;
-
-    if (classId3 >= drr->getTrafficVector().size()) {
-        cerr << "Classification failed!" << endl;
-        return 1;
-    }
-
-    // --- Enqueue packet 2 into correct class ---
-    bool success3 = drr->testEnqueue(pkt3); //Enqueue direct call or under Classify()?
-    cout << "Enqueue success: " << (success3 ? "true" : "false") << endl;
-
-    cout << "Current size for class " << classId3 << ": " << drr->getTrafficVector()[classId3]->getQueueSize() << endl;
-
-    //Test Schedule
-
-    for(int pkt_count = 3; pkt_count > 0; pkt_count -= 1){
-        cout << "-------------------" << endl;
-        Ptr<Packet> scheduledPkt = drr->testDequeue();
-
-        Ipv4Header ipHeaderExtract;
-        UdpHeader udpHeaderExtract;
-
+        NodeContainer n0r = NodeContainer(nodes.Get(0), nodes.Get(1));
+        NodeContainer n1r = NodeContainer(nodes.Get(1), nodes.Get(2));
     
-
-        if (scheduledPkt) {
-            scheduledPkt->RemoveHeader(ipHeaderExtract);
-            scheduledPkt->RemoveHeader(udpHeaderExtract);
-
-            cout << "Scheduled a packet successfully!" << endl;
-            cout << "Destination IP: " << ipHeaderExtract.GetDestination() << endl;
-            cout << "Protocol: " << (uint16_t)ipHeaderExtract.GetProtocol() << endl;
-            cout << "Destination port: " << udpHeaderExtract.GetDestinationPort() << endl;
-        } else {
-            cout << "Schedule returned nullptr — all queues empty." << endl;
+        PointToPointHelper p2p_1, p2p_2;
+        p2p_1.SetDeviceAttribute("DataRate", StringValue("4Mbps"));
+        p2p_1.SetChannelAttribute("Delay", StringValue("2ms"));
+    
+        p2p_2.SetDeviceAttribute("DataRate", StringValue("1Mbps"));
+        p2p_2.SetChannelAttribute("Delay", StringValue("2ms"));
+    
+        InternetStackHelper internet;
+        internet.Install(nodes);
+    
+        NetDeviceContainer p2p_device1, p2p_device2;
+        p2p_device1 = p2p_1.Install(nodes.Get(0), nodes.Get(1));
+        p2p_device2 = p2p_2.Install(nodes.Get(1), nodes.Get(2));
+    
+        // Assign IP addresses
+        Ipv4AddressHelper address;
+        address.SetBase("10.1.1.0", "255.255.255.255");
+        Ipv4InterfaceContainer interfaces1 = address.Assign(p2p_device1);
+    
+        address.SetBase("10.1.2.2", "255.255.255.255");
+        Ipv4InterfaceContainer interfaces2 = address.Assign(p2p_device2);
+    
+        //Populate routing tables
+        Ipv4GlobalRoutingHelper::PopulateRoutingTables();
+    
+        //Set Custom SPQ to router
+        Ptr<PointToPointNetDevice> router_device = p2p_device2.Get(0)->GetObject<PointToPointNetDevice>();
+        if(router_device){
+            router_device->SetQueue(drr);
         }
-    }
+        else{
+            cerr << "Failed to apply custom SPQ to router." << endl;
+            return 1;
+        }
+        
+        //Set UDP Server on node 2
+        uint16_t port1 = 80, port2 = 70, port3 = 10;
+        UdpEchoServerHelper server1(port1);
+        ApplicationContainer apps1 = server1.Install(nodes.Get(2));
+        apps1.Start(Seconds(1.0));
+        apps1.Stop(Seconds(120.0));
+    
+        UdpEchoServerHelper server2(port2);
+        ApplicationContainer apps2 = server2.Install(nodes.Get(2));
+        apps2.Start(Seconds(1.0));
+        apps2.Stop(Seconds(120.0));
+    
+        //Client App1
+        UdpEchoClientHelper client1(interfaces2.GetAddress(1), port1);
+        client1.SetAttribute("MaxPackets", UintegerValue(10000));
+        client1.SetAttribute("Interval", TimeValue(Seconds(0.001)));
+        client1.SetAttribute("PacketSize", UintegerValue(512));
+        
+        ApplicationContainer clientApps1 = client1.Install(nodes.Get(0));
+        clientApps1.Start(Seconds(1.0));
+        clientApps1.Stop(Seconds(120.0));
+    
+        //Client App2
+        UdpEchoClientHelper client2(interfaces2.GetAddress(1), port2);
+        client2.SetAttribute("MaxPackets", UintegerValue(10000));
+        client2.SetAttribute("Interval", TimeValue(Seconds(0.001)));
+        client2.SetAttribute("PacketSize", UintegerValue(512));
+        
+        ApplicationContainer clientApps2 = client2.Install(nodes.Get(0));
+        clientApps2.Start(Seconds(1.0));
+        clientApps2.Stop(Seconds(120.0));
+
+        //Client App3
+        UdpEchoClientHelper client3(interfaces2.GetAddress(1), port3);
+        client3.SetAttribute("MaxPackets", UintegerValue(10000));
+        client3.SetAttribute("Interval", TimeValue(Seconds(0.001)));
+        client3.SetAttribute("PacketSize", UintegerValue(512));
+        
+        ApplicationContainer clientApps3 = client3.Install(nodes.Get(0));
+        clientApps3.Start(Seconds(1.0));
+        clientApps3.Stop(Seconds(120.0));
+        
+    
+    
+        // Enable PCAP capture
+        // p2p_1.EnablePcap("router-incoming", p2p_device1.Get(1), true);  // Promiscuous mode
+        // p2p_2.EnablePcap("router-outgoing", p2p_device2.Get(0), true);
+        // p2p_1.EnablePcapAll("lab3-router-incoming");
+        // p2p_2.EnablePcapAll("lab3-router-outgoing");
+    
+        // Capture incoming packets on the router (incoming from Node 0 to Node 1)
+        p2p_1.EnablePcap("drr-router-incoming", p2p_device1.Get(0), false); 
+    
+        // Capture outgoing packets on the router (incoming from Node 0 to Node 1)
+        p2p_1.EnablePcap("drr-router-outgoing", p2p_device2.Get(0), false); 
+    
+    
+        cout << "Running Simulation" << endl;
+        // Run simulation
+        //Simulator::Stop(Seconds(12.0));
+        Simulator::Run();
+        Simulator::Destroy();
+    
+        return 0;
 
 
 }
@@ -551,3 +590,112 @@ int main(int argc, char* argv[]){
 //     }
 //     return nullptr;
 // }
+
+
+// //Create Packet 1
+//     // --- Construct packet: UDP port 80 ---
+//     Ptr<Packet> pkt = Create<Packet>(100);
+//     Ipv4Header ipHeader;
+//     ipHeader.SetProtocol(17); // UDP
+//     ipHeader.SetDestination("0.0.0.0");
+ 
+//     UdpHeader udpHeader;
+//     udpHeader.SetDestinationPort(80);
+ 
+//     pkt->AddHeader(udpHeader);
+//     pkt->AddHeader(ipHeader);
+
+//     //Create packet 2 
+//     Ptr<Packet> pkt2 = Create<Packet>(100);
+//     Ipv4Header ipHeader2;
+//     ipHeader2.SetProtocol(17); // UDP
+//     ipHeader2.SetDestination("0.0.0.1");
+ 
+//     UdpHeader udpHeader2;
+//     udpHeader2.SetDestinationPort(10);
+ 
+//     pkt2->AddHeader(udpHeader2);
+//     pkt2->AddHeader(ipHeader2);
+
+//     //Create packet3
+//     Ptr<Packet> pkt3 = Create<Packet>(200);
+//     Ipv4Header ipHeader3;
+//     ipHeader3.SetProtocol(17); // UDP
+//     ipHeader3.SetDestination("10.0.0.1");
+
+//     UdpHeader udpHeader3;
+//     udpHeader3.SetDestinationPort(70);
+ 
+//     pkt3->AddHeader(udpHeader3);
+//     pkt3->AddHeader(ipHeader3);
+
+//     //Classify packet 1
+//     uint32_t classId = drr->Classify(pkt);
+//     cout << "Classified into class: " << classId << endl;
+
+//     if (classId >= drr->getTrafficVector().size()) {
+//         cerr << "Classification failed!" << endl;
+//         return 1;
+//     }
+    
+//     cout << " - * - * - * - * - * - * - * - * - * - * - * - * - * - *" << endl;
+
+//     // --- Enqueue packet 1 into correct class ---
+//     bool success = drr->DoEnqueue(pkt);
+//     cout << "Enqueue success: " << (success ? "true" : "false") << endl;
+
+//     cout << "Current size for class " << classId << ": " << drr->getTrafficVector()[classId]->getQueueSize() << endl;
+
+//     //Classify packet 2
+//     uint32_t classId2 = drr->Classify(pkt2);
+//     cout << "Classified into class: " << classId2 << endl;
+
+//     if (classId2 >= drr->getTrafficVector().size()) {
+//         cerr << "Classification failed!" << endl;
+//         return 1;
+//     }
+
+//     // --- Enqueue packet 2 into correct class ---
+//     bool success2 = drr->DoEnqueue(pkt2); //Enqueue direct call or under Classify()?
+//     cout << "Enqueue success: " << (success2 ? "true" : "false") << endl;
+
+//     cout << "Current size for class " << classId2 << ": " << drr->getTrafficVector()[classId2]->getQueueSize() << endl;
+
+//     //Classify packet 3
+//     uint32_t classId3 = drr->Classify(pkt3);
+//     cout << "Classified into class: " << classId3 << endl;
+
+//     if (classId3 >= drr->getTrafficVector().size()) {
+//         cerr << "Classification failed!" << endl;
+//         return 1;
+//     }
+
+//     // --- Enqueue packet 2 into correct class ---
+//     bool success3 = drr->DoEnqueue(pkt3); //Enqueue direct call or under Classify()?
+//     cout << "Enqueue success: " << (success3 ? "true" : "false") << endl;
+
+//     cout << "Current size for class " << classId3 << ": " << drr->getTrafficVector()[classId3]->getQueueSize() << endl;
+
+//     //Test Schedule
+
+//     for(int pkt_count = 3; pkt_count > 0; pkt_count -= 1){
+//         cout << "-------------------" << endl;
+//         Ptr<Packet> scheduledPkt = drr->DoDequeue();
+
+//         Ipv4Header ipHeaderExtract;
+//         UdpHeader udpHeaderExtract;
+
+    
+
+//         if (scheduledPkt) {
+//             scheduledPkt->RemoveHeader(ipHeaderExtract);
+//             scheduledPkt->RemoveHeader(udpHeaderExtract);
+
+//             cout << "Scheduled a packet successfully!" << endl;
+//             cout << "Destination IP: " << ipHeaderExtract.GetDestination() << endl;
+//             cout << "Protocol: " << (uint16_t)ipHeaderExtract.GetProtocol() << endl;
+//             cout << "Destination port: " << udpHeaderExtract.GetDestinationPort() << endl;
+//         } else {
+//             cout << "Schedule returned nullptr — all queues empty." << endl;
+//         }
+//     }
